@@ -29,11 +29,20 @@ export const metadata: Metadata = {
     siteName: 'Athena',
     locale: 'ja_JP',
     type: 'website',
+    images: [
+      {
+        url: '/ogp.png',
+        width: 1200,
+        height: 630,
+        alt: 'Athena — Living Curiosity Atlas',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Athena — Living Curiosity Atlas',
     description: '情報整理を天体観測へ。Xブックマークを宇宙空間で探索する',
+    images: ['/ogp.png'],
   },
   robots: {
     index: true,
