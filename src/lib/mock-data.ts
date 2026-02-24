@@ -1,3 +1,4 @@
+// cSpell:words Supabase pgvector TTFB genai Neumorphic Glassmorphism
 // Generates realistic mock data for demo mode
 import { Bookmark, Cluster } from './types';
 

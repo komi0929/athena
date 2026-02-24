@@ -1,14 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 import { generateEmbeddings, generateClusterLabel, embeddingTo3D, findSimilar } from '@/lib/gemini';
 
 // POST /api/embed — Generate embeddings for new bookmarks
 // Called after sync to compute 3D positions and clusters
 export async function POST(req: NextRequest) {
   try {
+    // ═══ Authentication Check ═══
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return req.cookies.getAll(); },
+          setAll() {},
+        },
+      }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+    }
+
     const { texts, ids } = await req.json();
 
     if (!texts || !Array.isArray(texts) || texts.length === 0) {
       return NextResponse.json({ error: 'texts array required' }, { status: 400 });
+    }
+
+    // ═══ Size Limit — prevent API cost explosion ═══
+    if (texts.length > 50) {
+      return NextResponse.json({ error: '一度に処理できるのは最大50件です' }, { status: 400 });
     }
 
     // Check if Gemini is configured

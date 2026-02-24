@@ -21,6 +21,24 @@ export const metadata: Metadata = {
   title: "Athena — Living Curiosity Atlas",
   description: "情報整理を天体観測へ。Xブックマークを宇宙空間で探索する",
   icons: { icon: "/favicon.ico" },
+  metadataBase: new URL('https://athena.hitokoto.tech'),
+  openGraph: {
+    title: 'Athena — Living Curiosity Atlas',
+    description: '情報整理を天体観測へ。Xブックマークを宇宙空間で探索する',
+    url: 'https://athena.hitokoto.tech',
+    siteName: 'Athena',
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Athena — Living Curiosity Atlas',
+    description: '情報整理を天体観測へ。Xブックマークを宇宙空間で探索する',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

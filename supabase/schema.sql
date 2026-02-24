@@ -86,3 +86,15 @@ alter table clusters enable row level security;
 create policy "Users can view own clusters"
   on clusters for select
   using (auth.uid() = user_id);
+
+create policy "Users can insert own clusters"
+  on clusters for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own clusters"
+  on clusters for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own clusters"
+  on clusters for delete
+  using (auth.uid() = user_id);

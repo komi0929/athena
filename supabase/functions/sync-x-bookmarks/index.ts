@@ -28,11 +28,18 @@ interface XUser {
 }
 
 Deno.serve(async (req: Request) => {
-  // CORS
+  // CORS — restrict to known origins
+  const allowedOrigins = [
+    'https://athena.hitokoto.tech',
+    'http://localhost:3000',
+  ];
+  const origin = req.headers.get('origin') || '';
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': corsOrigin,
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
       },
     });
@@ -199,14 +206,13 @@ Deno.serve(async (req: Request) => {
     }), {
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': corsOrigin,
       },
     });
   } catch (error) {
     console.error('Sync error:', error);
     return new Response(JSON.stringify({
       error: '同期中にエラーが発生しました',
-      details: error instanceof Error ? error.message : 'Unknown',
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

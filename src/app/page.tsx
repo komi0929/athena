@@ -158,6 +158,7 @@ function UserBadge() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 1, duration: 0.5 }}
         onClick={() => setMenuOpen(!menuOpen)}
+        aria-label="ユーザーメニュー"
         style={{
           width: '34px',
           height: '34px',
