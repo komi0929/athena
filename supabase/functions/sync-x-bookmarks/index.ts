@@ -97,13 +97,33 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ═══ Fetch X API Bookmarks ═══
-    // 【絶対制約】max_results=20 ハードコード
+    // ═══ Get X API credentials from user's OAuth session ═══
+    // When user logs in with X, Supabase stores their identity data
+    const xIdentity = user.identities?.find(
+      (id: { provider: string }) => id.provider === 'twitter'
+    );
+    
+    // Get X User ID from identity
+    const xUserId = xIdentity?.identity_data?.provider_id 
+      || xIdentity?.id 
+      || Deno.env.get('X_USER_ID');
+    
+    // Get X Bearer Token — use env var (App bearer or user access token)
     const xBearerToken = Deno.env.get('X_BEARER_TOKEN');
-    const xUserId = Deno.env.get('X_USER_ID');
 
-    if (!xBearerToken || !xUserId) {
-      return new Response(JSON.stringify({ error: 'X API credentials not configured' }), {
+    if (!xBearerToken) {
+      return new Response(JSON.stringify({ 
+        error: 'X API設定エラー: X_BEARER_TOKEN が未設定です。Supabase Edge Function のシークレットに設定してください。' 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!xUserId) {
+      return new Response(JSON.stringify({ 
+        error: 'X API設定エラー: XユーザーIDが取得できません。X_USER_ID をシークレットに設定するか、Xで再ログインしてください。' 
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -124,8 +144,18 @@ Deno.serve(async (req: Request) => {
     if (!xResponse.ok) {
       const errorText = await xResponse.text();
       console.error('X API error:', xResponse.status, errorText);
+      
+      let errorMsg = 'X APIエラー';
+      if (xResponse.status === 401 || xResponse.status === 403) {
+        errorMsg = 'X APIの認証に失敗しました。Bearer tokenを確認してください。';
+      } else if (xResponse.status === 429) {
+        errorMsg = 'X APIのレート制限に達しました。しばらく待ってから再試行してください。';
+      } else {
+        errorMsg = `X APIエラー (${xResponse.status}): ${errorText.slice(0, 100)}`;
+      }
+      
       return new Response(JSON.stringify({
-        error: 'X API呼び出し失敗',
+        error: errorMsg,
         status: xResponse.status,
       }), {
         status: 502,
