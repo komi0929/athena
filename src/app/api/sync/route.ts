@@ -30,13 +30,18 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    // ═══ Force-refresh the session to get a valid JWT ═══
+    // getSession() returns stale tokens from cookies. refreshSession() 
+    // uses the refresh_token to obtain a brand new, valid access_token.
+    const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+    if (sessionError || !session?.access_token) {
+      console.error('[Sync] Session refresh failed:', sessionError?.message);
       return NextResponse.json(
-        { error: '認証が必要です。再ログインしてください。' },
+        { error: '認証セッションの更新に失敗しました。再ログインしてください。' },
         { status: 401 }
       );
     }
+    console.log('[Sync] Got fresh JWT, expires at:', new Date(session.expires_at! * 1000).toISOString());
 
     // ═══ Call Edge Function with the user's JWT ═══
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/sync-x-bookmarks`;
