@@ -181,8 +181,9 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
 
       try {
-        // Get the current session token
+        // Force token refresh by calling getUser() first, then get fresh session
         const supabase = createClient();
+        await supabase.auth.getUser(); // triggers token refresh if expired
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session?.access_token) {
