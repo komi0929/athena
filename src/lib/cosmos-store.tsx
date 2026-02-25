@@ -181,15 +181,14 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
 
       try {
-        // Call /api/sync — server-side route reads JWT from cookies automatically
-        const response = await fetch('/api/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
+        const { invokeEdgeFunction } = await import('./edge-client');
+        const data = await invokeEdgeFunction<{
+          error?: string;
+          cooldownUntil?: string;
+          newCount?: number;
+        }>('sync-x-bookmarks');
 
-        const data = await response.json();
-
-        if (!response.ok) {
+        if (data.error) {
           if (data.error === 'cooldown' || data.cooldownUntil) {
             setState(prev => ({
               ...prev,
@@ -202,10 +201,6 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
             }));
             return;
           }
-          throw new Error(data.error || '同期に失敗しました');
-        }
-
-        if (data.error) {
           throw new Error(data.error);
         }
 
@@ -224,7 +219,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
         }));
 
         // If new bookmarks arrived, dispatch an event for visual feedback
-        if (data.newCount > 0) {
+        if ((data.newCount || 0) > 0) {
           window.dispatchEvent(new CustomEvent('athena-new-stars', {
             detail: { count: data.newCount },
           }));
