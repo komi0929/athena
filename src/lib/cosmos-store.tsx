@@ -181,39 +181,44 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
 
       try {
-        // Force token refresh by calling getUser() first, then get fresh session
+        // Use Supabase client's functions.invoke() — handles JWT auth automatically
         const supabase = createClient();
-        await supabase.auth.getUser(); // triggers token refresh if expired
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session?.access_token) {
-          throw new Error('認証が必要です。再ログインしてください。');
-        }
-
-        const response = await fetch('/api/sync', {
+        const { data, error } = await supabase.functions.invoke('sync-x-bookmarks', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          if (data.error === 'cooldown') {
+        if (error) {
+          // Check if it's a cooldown error
+          if (error.message?.includes('cooldown') || (data && data.error === 'cooldown')) {
             setState(prev => ({
               ...prev,
               sync: {
                 ...prev.sync,
                 isSyncing: false,
-                cooldownUntil: data.cooldownUntil,
+                cooldownUntil: data?.cooldownUntil,
                 syncError: null,
               },
             }));
             return;
           }
-          throw new Error(data.error || '同期に失敗しました');
+          throw new Error(data?.error || error.message || '同期に失敗しました');
+        }
+
+        if (data?.error === 'cooldown') {
+          setState(prev => ({
+            ...prev,
+            sync: {
+              ...prev.sync,
+              isSyncing: false,
+              cooldownUntil: data.cooldownUntil,
+              syncError: null,
+            },
+          }));
+          return;
+        }
+
+        if (data?.error) {
+          throw new Error(data.error);
         }
 
         const now = new Date().toISOString();
