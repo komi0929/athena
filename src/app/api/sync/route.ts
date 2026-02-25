@@ -6,7 +6,6 @@ export async function POST(req: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!supabaseUrl) {
-      // In demo mode without Supabase, return mock sync result
       return NextResponse.json({
         success: true,
         newCount: 0,
@@ -22,43 +21,65 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
-        { error: '認証が必要です' },
+        { error: '認証トークンがありません。再ログインしてください。' },
         { status: 401 }
       );
     }
 
     // Call the Supabase Edge Function
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/sync-x-bookmarks`;
-    const response = await fetch(edgeFunctionUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      },
-    });
+    console.log('[Sync] Calling Edge Function:', edgeFunctionUrl);
+
+    let response: Response;
+    try {
+      response = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+        },
+      });
+    } catch (fetchError) {
+      // Network error connecting to Edge Function (not deployed, DNS error, etc.)
+      console.error('[Sync] Failed to reach Edge Function:', fetchError);
+      return NextResponse.json(
+        { error: 'Edge Functionに接続できません。デプロイされているか確認してください。' },
+        { status: 503 }
+      );
+    }
 
     const responseText = await response.text();
+    console.log('[Sync] Edge Function response:', response.status, responseText.slice(0, 300));
+
     let data;
     try {
       data = JSON.parse(responseText);
     } catch {
-      console.error('Edge Function non-JSON response:', response.status, responseText);
+      // Edge Function returned non-JSON (e.g. HTML error page, 404, etc.)
+      const hint = response.status === 404
+        ? 'Edge Functionが見つかりません。supabase functions deploy sync-x-bookmarks を実行してください。'
+        : `Edge Functionがエラーを返しました (${response.status})`;
       return NextResponse.json(
-        { error: `Edge Function エラー (${response.status}): ${responseText.slice(0, 200)}` },
-        { status: response.status }
+        { error: hint },
+        { status: response.status || 502 }
       );
     }
 
     if (!response.ok) {
-      console.error('Edge Function error:', response.status, data);
-      return NextResponse.json(data, { status: response.status });
+      console.error('[Sync] Edge Function error:', response.status, data);
+      // Forward the error message from Edge Function
+      const errorMsg = data.error || data.message || `同期エラー (${response.status})`;
+      return NextResponse.json(
+        { error: errorMsg, ...(data.cooldownUntil ? { cooldownUntil: data.cooldownUntil } : {}) },
+        { status: response.status }
+      );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Sync API error:', error);
-    const message = error instanceof Error ? error.message : '同期リクエストの処理に失敗しました';
+    console.error('[Sync] Unexpected error:', error);
+    const message = error instanceof Error ? error.message : '同期中に予期しないエラーが発生しました';
     return NextResponse.json(
       { error: message },
       { status: 500 }

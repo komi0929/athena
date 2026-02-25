@@ -127,7 +127,7 @@ export function AudioManager() {
       style={{
         position: 'fixed',
         top: '20px',
-        right: '20px',
+        right: '72px',
         zIndex: 100,
       }}
     >

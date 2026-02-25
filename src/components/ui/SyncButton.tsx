@@ -134,7 +134,7 @@ export function SyncButton() {
               padding: '10px 16px',
               color: 'rgba(255, 100, 100, 0.9)',
               fontSize: '11px',
-              maxWidth: '220px',
+              maxWidth: '320px',
             }}
           >
             {sync.syncError}
