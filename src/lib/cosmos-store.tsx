@@ -188,20 +188,37 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
         });
 
         if (error) {
+          // Extract the actual error body from the Edge Function response
+          let errorBody: Record<string, unknown> | null = null;
+          try {
+            // FunctionsHttpError has context with the response
+            if ('context' in error && error.context instanceof Response) {
+              errorBody = await error.context.json();
+            }
+          } catch {
+            // Ignore JSON parse errors
+          }
+          
+          const errorMsg = errorBody?.error as string 
+            || data?.error as string 
+            || error.message 
+            || '同期に失敗しました';
+
           // Check if it's a cooldown error
-          if (error.message?.includes('cooldown') || (data && data.error === 'cooldown')) {
+          const cooldownUntil = (errorBody?.cooldownUntil || data?.cooldownUntil) as string | undefined;
+          if (errorMsg.includes('cooldown') || errorBody?.error === 'cooldown' || data?.error === 'cooldown') {
             setState(prev => ({
               ...prev,
               sync: {
                 ...prev.sync,
                 isSyncing: false,
-                cooldownUntil: data?.cooldownUntil,
+                cooldownUntil: cooldownUntil || null,
                 syncError: null,
               },
             }));
             return;
           }
-          throw new Error(data?.error || error.message || '同期に失敗しました');
+          throw new Error(errorMsg);
         }
 
         if (data?.error === 'cooldown') {
