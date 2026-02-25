@@ -1,9 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Bookmark, Cluster, CosmosState, SyncState } from './types';
+import React, { createContext, useContext, useState, useMemo, useRef, useEffect } from 'react';
+import { Bookmark, CosmosState, SyncState } from './types';
 import { generateMockData } from './mock-data';
-import { createClient } from './supabase';
+
 
 // ═══ Constants ═══
 const COOLDOWN_HOURS = 24;
@@ -181,60 +181,31 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
 
       try {
-        // Use Supabase client's functions.invoke() — handles JWT auth automatically
-        const supabase = createClient();
-        const { data, error } = await supabase.functions.invoke('sync-x-bookmarks', {
+        // Call /api/sync — server-side route reads JWT from cookies automatically
+        const response = await fetch('/api/sync', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         });
 
-        if (error) {
-          // Extract the actual error body from the Edge Function response
-          let errorBody: Record<string, unknown> | null = null;
-          try {
-            // FunctionsHttpError has context with the response
-            if ('context' in error && error.context instanceof Response) {
-              errorBody = await error.context.json();
-            }
-          } catch {
-            // Ignore JSON parse errors
-          }
-          
-          const errorMsg = errorBody?.error as string 
-            || data?.error as string 
-            || error.message 
-            || '同期に失敗しました';
+        const data = await response.json();
 
-          // Check if it's a cooldown error
-          const cooldownUntil = (errorBody?.cooldownUntil || data?.cooldownUntil) as string | undefined;
-          if (errorMsg.includes('cooldown') || errorBody?.error === 'cooldown' || data?.error === 'cooldown') {
+        if (!response.ok) {
+          if (data.error === 'cooldown' || data.cooldownUntil) {
             setState(prev => ({
               ...prev,
               sync: {
                 ...prev.sync,
                 isSyncing: false,
-                cooldownUntil: cooldownUntil || null,
+                cooldownUntil: data.cooldownUntil || null,
                 syncError: null,
               },
             }));
             return;
           }
-          throw new Error(errorMsg);
+          throw new Error(data.error || '同期に失敗しました');
         }
 
-        if (data?.error === 'cooldown') {
-          setState(prev => ({
-            ...prev,
-            sync: {
-              ...prev.sync,
-              isSyncing: false,
-              cooldownUntil: data.cooldownUntil,
-              syncError: null,
-            },
-          }));
-          return;
-        }
-
-        if (data?.error) {
+        if (data.error) {
           throw new Error(data.error);
         }
 
