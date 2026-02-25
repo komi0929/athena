@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 
 // POST /api/sync — Server-side proxy to Supabase Edge Function
-// Uses server-side cookies to get a fresh JWT, then forwards it to the Edge Function
+// Uses valid JWT from authorization header to forward to Edge Function
 export async function POST(req: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,41 +17,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ═══ Get user session from cookies (server-side) ═══
-    const supabase = createServerClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          getAll() { return req.cookies.getAll(); },
-          setAll() {},
-        },
-      }
-    );
-
-    // ═══ Force-refresh the session to get a valid JWT ═══
-    // getSession() returns stale tokens from cookies. refreshSession() 
-    // uses the refresh_token to obtain a brand new, valid access_token.
-    const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
-    if (sessionError || !session?.access_token) {
-      console.error('[Sync] Session refresh failed:', sessionError?.message);
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
       return NextResponse.json(
-        { error: '認証セッションの更新に失敗しました。再ログインしてください。' },
+        { error: '認証が必要です。再ログインしてください。' },
         { status: 401 }
       );
     }
-    console.log('[Sync] Got fresh JWT, expires at:', new Date(session.expires_at! * 1000).toISOString());
 
     // ═══ Call Edge Function with the user's JWT ═══
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/sync-x-bookmarks`;
-    console.log('[Sync] Calling Edge Function with server-side JWT');
+    console.log('[Sync] Calling Edge Function with client-provided JWT');
 
     let response: Response;
     try {
       response = await fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
           'apikey': supabaseAnonKey,
         },

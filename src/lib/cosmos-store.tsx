@@ -181,14 +181,31 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
 
       try {
-        const { invokeEdgeFunction } = await import('./edge-client');
-        const data = await invokeEdgeFunction<{
-          error?: string;
-          cooldownUntil?: string;
-          newCount?: number;
-        }>('sync-x-bookmarks');
+        const { createClient } = await import('./supabase');
+        const supabase = createClient();
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          throw new Error('未ログインです。再ログインしてください。');
+        }
 
-        if (data.error) {
+        const response = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+        });
+
+        const text = await response.text();
+        let data: { error?: string; cooldownUntil?: string; newCount?: number } = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(`API Proxy エラー (${response.status}): ${text.slice(0, 100)}`);
+        }
+
+        if (!response.ok) {
           if (data.error === 'cooldown' || data.cooldownUntil) {
             setState(prev => ({
               ...prev,
@@ -201,7 +218,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
             }));
             return;
           }
-          throw new Error(data.error);
+          throw new Error(data.error || '同期に失敗しました');
         }
 
         const now = new Date().toISOString();
