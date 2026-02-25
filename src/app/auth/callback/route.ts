@@ -13,7 +13,21 @@ export async function GET(request: NextRequest) {
   }
 
   if (code) {
-    const supabaseResponse = NextResponse.redirect(`${origin}${next}`);
+    // Determine the correct redirect URL first
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const isLocalEnv = process.env.NODE_ENV === 'development';
+
+    let redirectUrl: string;
+    if (isLocalEnv) {
+      redirectUrl = `${origin}${next}`;
+    } else if (forwardedHost) {
+      redirectUrl = `https://${forwardedHost}${next}`;
+    } else {
+      redirectUrl = `${origin}${next}`;
+    }
+
+    // Create response with the correct URL — cookies will be set on THIS response
+    const supabaseResponse = NextResponse.redirect(redirectUrl);
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,15 +48,8 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return supabaseResponse;
-      }
+      // Return the SAME response that has the session cookies
+      return supabaseResponse;
     }
   }
 
