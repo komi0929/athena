@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Bookmark, Cluster, CosmosState, SyncState } from './types';
 import { generateMockData } from './mock-data';
+import { createClient } from './supabase';
 
 // ═══ Constants ═══
 const COOLDOWN_HOURS = 24;
@@ -180,9 +181,20 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
 
       try {
+        // Get the current session token
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error('認証が必要です。再ログインしてください。');
+        }
+
         const response = await fetch('/api/sync', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
         });
 
         const data = await response.json();
