@@ -38,17 +38,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('Edge Function non-JSON response:', response.status, responseText);
+      return NextResponse.json(
+        { error: `Edge Function エラー (${response.status}): ${responseText.slice(0, 200)}` },
+        { status: response.status }
+      );
+    }
 
     if (!response.ok) {
+      console.error('Edge Function error:', response.status, data);
       return NextResponse.json(data, { status: response.status });
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error('Sync API error:', error);
+    const message = error instanceof Error ? error.message : '同期リクエストの処理に失敗しました';
     return NextResponse.json(
-      { error: '同期リクエストの処理に失敗しました' },
+      { error: message },
       { status: 500 }
     );
   }
