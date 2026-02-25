@@ -160,22 +160,25 @@ function UserBadge() {
         onClick={() => setMenuOpen(!menuOpen)}
         aria-label="ユーザーメニュー"
         style={{
-          width: '34px',
-          height: '34px',
+          width: '40px',
+          height: '40px',
           borderRadius: '50%',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: '2px solid rgba(100, 160, 255, 0.4)',
           background: avatarUrl
             ? `url(${avatarUrl}) center/cover`
-            : 'linear-gradient(135deg, rgba(60, 120, 200, 0.3), rgba(60, 80, 140, 0.2))',
+            : 'linear-gradient(135deg, rgba(60, 120, 200, 0.5), rgba(100, 60, 200, 0.4))',
           cursor: 'pointer',
           overflow: 'hidden',
-          boxShadow: '0 0 15px rgba(100, 160, 255, 0.08)',
-          transition: 'border-color 0.3s',
+          boxShadow: '0 0 12px rgba(100, 160, 255, 0.25), inset 0 0 8px rgba(255, 255, 255, 0.1)',
+          transition: 'border-color 0.3s, box-shadow 0.3s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
-        whileHover={{ scale: 1.08 }}
+        whileHover={{ scale: 1.1, boxShadow: '0 0 20px rgba(100, 160, 255, 0.4)' }}
       >
         {!avatarUrl && (
-          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>
+          <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px', fontWeight: 600 }}>
             {userName.charAt(0).toUpperCase()}
           </span>
         )}
