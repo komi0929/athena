@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, AdaptiveDpr } from '@react-three/drei';
 import { StarField } from './StarField';
@@ -13,18 +13,28 @@ import { ZoomTracker } from './ZoomTracker';
 import * as THREE from 'three';
 
 export function CosmosCanvas() {
-  // R3F's Canvas has an internal event system that captures contextmenu.
-  // We remove that listener after creation to restore browser right-click.
-  const handleCreated = useCallback((state: { gl: THREE.WebGLRenderer }) => {
-    const canvas = state.gl.domElement;
-    // R3F attaches a contextmenu preventDefault — remove it
-    canvas.addEventListener('contextmenu', (e) => e.stopPropagation(), true);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // R3F's Canvas intercepts contextmenu at canvas level.
+  // Override it by capturing the event on our wrapper first.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const handler = (e: MouseEvent) => {
+      // Allow default browser context menu
+      e.stopPropagation();
+    };
+
+    // Use capture phase to intercept before R3F
+    wrapper.addEventListener('contextmenu', handler, true);
+    return () => wrapper.removeEventListener('contextmenu', handler, true);
   }, []);
 
   return (
     <div
+      ref={wrapperRef}
       style={{ width: '100vw', height: '100vh', background: '#000005' }}
-      onContextMenu={undefined} // Explicitly don't block
     >
       <Canvas
         camera={{ position: [0, 0, 120], fov: 60, near: 0.1, far: 1000 }}
@@ -36,7 +46,6 @@ export function CosmosCanvas() {
         }}
         dpr={[1, 2]}
         style={{ background: '#000005' }}
-        onCreated={handleCreated}
       >
         <AdaptiveDpr pixelated />
         <color attach="background" args={['#000005']} />

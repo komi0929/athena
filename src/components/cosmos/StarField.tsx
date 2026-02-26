@@ -175,7 +175,9 @@ export function StarField() {
   const glowRef = useRef<THREE.Points>(null);
 
   const filteredBookmarks = useMemo(() => {
-    return actions.getFilteredBookmarks();
+    const result = actions.getFilteredBookmarks();
+    console.log('[StarField] Rendering', result.length, 'stars, positions:', result.slice(0, 3).map(b => `(${b.pos_x.toFixed(1)},${b.pos_y.toFixed(1)},${b.pos_z.toFixed(1)})`));
+    return result;
   }, [actions, timeFilter, bookmarks]);
 
   // Build geometry programmatically
@@ -212,7 +214,7 @@ export function StarField() {
       const isSelected = selectedBookmark?.id === bm.id;
       const interactMultiplier = isSelected ? 3.0 : isHovered ? 2.2 : 1.0;
 
-      sz[i] = (bm.is_read ? 3.0 : 4.5) * interactMultiplier;
+      sz[i] = (bm.is_read ? 8.0 : 12.0) * interactMultiplier;
       rnd[i] = seeded(i * 7 + 42);
       ir[i] = bm.is_read ? 1.0 : 0.0;
     }
