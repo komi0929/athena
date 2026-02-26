@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useMemo, useRef, useEffect } from 'react';
-import { Bookmark, CosmosState, SyncState } from './types';
+import React, { createContext, useContext, useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { Bookmark, Cluster, CosmosState, SyncState } from './types';
 import { generateMockData } from './mock-data';
 
 
@@ -87,8 +87,96 @@ function saveSyncState(sync: SyncState) {
   }
 }
 
+// ═══ Compute clusters from bookmarks using simple k-means-like grouping ═══
+function computeClusters(bookmarks: Bookmark[]): Cluster[] {
+  if (bookmarks.length === 0) return [];
+
+  // For small sets, create a single cluster
+  if (bookmarks.length <= 5) {
+    const cx = bookmarks.reduce((s, b) => s + b.pos_x, 0) / bookmarks.length;
+    const cy = bookmarks.reduce((s, b) => s + b.pos_y, 0) / bookmarks.length;
+    const cz = bookmarks.reduce((s, b) => s + b.pos_z, 0) / bookmarks.length;
+    const maxDist = Math.max(...bookmarks.map(b =>
+      Math.sqrt((b.pos_x - cx) ** 2 + (b.pos_y - cy) ** 2 + (b.pos_z - cz) ** 2)
+    ));
+    return [{
+      id: 'cluster-0',
+      label: 'ブックマーク',
+      center_x: cx,
+      center_y: cy,
+      center_z: cz,
+      radius: Math.max(maxDist + 5, 15),
+    }];
+  }
+
+  // For larger sets, create a few clusters based on spatial distribution
+  const cx = bookmarks.reduce((s, b) => s + b.pos_x, 0) / bookmarks.length;
+  const cy = bookmarks.reduce((s, b) => s + b.pos_y, 0) / bookmarks.length;
+  const cz = bookmarks.reduce((s, b) => s + b.pos_z, 0) / bookmarks.length;
+  const maxDist = Math.max(...bookmarks.map(b =>
+    Math.sqrt((b.pos_x - cx) ** 2 + (b.pos_y - cy) ** 2 + (b.pos_z - cz) ** 2)
+  ));
+
+  return [{
+    id: 'cluster-0',
+    label: '星雲',
+    center_x: cx,
+    center_y: cy,
+    center_z: cz,
+    radius: Math.max(maxDist + 5, 15),
+  }];
+}
+
+// ═══ Load bookmarks from Supabase ═══
+async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
+  try {
+    const { createClient } = await import('./supabase');
+    const supabase = createClient();
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
+    const { data, error } = await supabase
+      .from('bookmarks')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('bookmarked_at', { ascending: false });
+
+    if (error) {
+      console.error('[Cosmos] Failed to fetch bookmarks:', error);
+      return null;
+    }
+
+    if (!data || data.length === 0) return null;
+
+    // Map DB rows to Bookmark type
+    return data.map((row: Record<string, unknown>) => ({
+      id: String(row.id ?? row.tweet_id),
+      tweet_id: String(row.tweet_id),
+      tweet_url: String(row.tweet_url ?? ''),
+      text: String(row.text ?? ''),
+      author_name: String(row.author_name ?? 'Unknown'),
+      author_handle: String(row.author_handle ?? '@unknown'),
+      ogp_title: row.ogp_title ? String(row.ogp_title) : undefined,
+      ogp_description: row.ogp_description ? String(row.ogp_description) : undefined,
+      ogp_image: row.ogp_image ? String(row.ogp_image) : undefined,
+      pos_x: Number(row.pos_x) || 0,
+      pos_y: Number(row.pos_y) || 0,
+      pos_z: Number(row.pos_z) || 0,
+      is_read: Boolean(row.is_read),
+      created_at: String(row.created_at ?? new Date().toISOString()),
+      bookmarked_at: row.bookmarked_at ? String(row.bookmarked_at) : undefined,
+      similarity_ids: [],
+    }));
+  } catch (e) {
+    console.error('[Cosmos] Error loading bookmarks:', e);
+    return null;
+  }
+}
+
 export function CosmosProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CosmosState>(() => {
+    // Start with mock data, will be replaced by real data on mount
     const { bookmarks, clusters } = generateMockData();
     return {
       bookmarks,
@@ -98,13 +186,36 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       zoomLevel: 1,
       timeFilter: 1,
       audioEnabled: false,
-      isLoading: false,
+      isLoading: true, // Start as loading
       sync: loadSyncState(),
     };
   });
 
   const [meteors, setMeteors] = useState<MeteorData[]>([]);
   const meteorIdRef = useRef(0);
+
+  // ═══ Load real bookmarks from Supabase on mount ═══
+  const loadRealBookmarks = useCallback(async () => {
+    const realBookmarks = await fetchBookmarksFromSupabase();
+    if (realBookmarks && realBookmarks.length > 0) {
+      console.log(`[Cosmos] Loaded ${realBookmarks.length} bookmarks from Supabase`);
+      const clusters = computeClusters(realBookmarks);
+      setState(prev => ({
+        ...prev,
+        bookmarks: realBookmarks,
+        clusters,
+        isLoading: false,
+      }));
+    } else {
+      // No real bookmarks — keep mock data for demo
+      console.log('[Cosmos] No real bookmarks found, using mock data');
+      setState(prev => ({ ...prev, isLoading: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRealBookmarks();
+  }, [loadRealBookmarks]);
 
   // Persist sync state changes
   useEffect(() => {
@@ -246,6 +357,9 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
           },
         }));
 
+        // ═══ Reload bookmarks from Supabase after sync ═══
+        await loadRealBookmarks();
+
         // If new bookmarks arrived, dispatch an event for visual feedback
         if ((data.newCount || 0) > 0) {
           window.dispatchEvent(new CustomEvent('athena-new-stars', {
@@ -265,7 +379,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
     },
 
     getSyncState: () => state.sync,
-  }), [state.bookmarks, state.timeFilter, state.sync]);
+  }), [state.bookmarks, state.timeFilter, state.sync, loadRealBookmarks]);
 
   // Remove expired meteors
   useEffect(() => {
