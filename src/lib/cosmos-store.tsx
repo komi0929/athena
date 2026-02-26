@@ -305,7 +305,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
         // then fall back to localStorage (persisted from login event)
         const providerToken = session.provider_token || getStoredProviderToken();
         if (!providerToken) {
-          throw new Error('X APIトークンが見つかりません。一度ログアウトしてから再度Xでログインしてください。');
+          throw new Error('Xの接続が切れました。ログアウトして再度Xでログインしてください。');
         }
 
         const response = await fetch('/api/sync', {

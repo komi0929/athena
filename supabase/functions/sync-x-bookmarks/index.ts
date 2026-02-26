@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
       
       let errorMsg = 'X APIエラー';
       if (xResponse.status === 401 || xResponse.status === 403) {
-        errorMsg = 'X APIの認証に失敗しました。Bearer tokenを確認してください。';
+        errorMsg = 'Xの接続が切れました。ログアウトして再度Xでログインしてください。';
       } else if (xResponse.status === 429) {
         errorMsg = 'X APIのレート制限に達しました。しばらく待ってから再試行してください。';
       } else {
