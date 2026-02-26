@@ -4,7 +4,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.97.0';
 
-const COOLDOWN_HOURS = 24;
+// Cooldown removed — users can sync freely
 
 interface XBookmark {
   id: string;
@@ -69,33 +69,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ═══ Cooldown Check ═══
-    const { data: lastSync } = await supabase
-      .from('sync_log')
-      .select('synced_at')
-      .eq('user_id', user.id)
-      .order('synced_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (lastSync) {
-      const lastSyncTime = new Date(lastSync.synced_at).getTime();
-      const cooldownEnd = lastSyncTime + COOLDOWN_HOURS * 60 * 60 * 1000;
-      const now = Date.now();
-
-      if (now < cooldownEnd) {
-        const remainMs = cooldownEnd - now;
-        const remainHours = Math.ceil(remainMs / (60 * 60 * 1000));
-        return new Response(JSON.stringify({
-          error: 'cooldown',
-          message: `次回の天体観測まで: ${remainHours}時間`,
-          cooldownUntil: new Date(cooldownEnd).toISOString(),
-        }), {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    }
+    // Cooldown removed — users can sync freely
 
     // ═══ Get X API credentials from user's OAuth session ═══
     // When user logs in with X, Supabase stores their identity data

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCosmosStore } from '@/lib/cosmos-store';
 
@@ -32,31 +32,7 @@ export function SyncButton() {
   const { sync, actions } = useCosmosStore();
   const [isHovered, setIsHovered] = useState(false);
 
-  // Cooldown computed from sync state
-  const cooldownInfo = useMemo(() => {
-    if (!sync.cooldownUntil) return { isOnCooldown: false, remaining: null };
-
-    const end = new Date(sync.cooldownUntil).getTime();
-    const diff = end - Date.now();
-
-    if (diff <= 0) return { isOnCooldown: false, remaining: null };
-
-    const hours = Math.floor(diff / (60 * 60 * 1000));
-    const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-    const remaining = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-
-    return { isOnCooldown: true, remaining };
-  }, [sync.cooldownUntil]);
-
-  // Refresh cooldown display periodically
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    if (!cooldownInfo.isOnCooldown) return;
-    const interval = setInterval(() => setTick(t => t + 1), 30000);
-    return () => clearInterval(interval);
-  }, [cooldownInfo.isOnCooldown]);
-
-  const canSync = !sync.isSyncing && !cooldownInfo.isOnCooldown;
+  const canSync = !sync.isSyncing;
 
   // Show result toast
   const showResult = sync.lastSyncCount > 0 && !sync.isSyncing;
@@ -211,12 +187,7 @@ export function SyncButton() {
 
         {/* Label */}
         <span>
-          {sync.isSyncing
-            ? '天体観測中...'
-            : cooldownInfo.isOnCooldown
-            ? `次回の観測まで: ${cooldownInfo.remaining || '...'}`
-            : '星空を更新'
-          }
+          {sync.isSyncing ? '天体観測中...' : '星空を更新'}
         </span>
       </motion.button>
 

@@ -6,8 +6,6 @@ import { generateMockData } from './mock-data';
 
 
 // ═══ Constants ═══
-const COOLDOWN_HOURS = 24;
-const COOLDOWN_MS = COOLDOWN_HOURS * 60 * 60 * 1000;
 const LOCALSTORAGE_SYNC_KEY = 'athena_last_sync';
 
 interface CosmosActions {
@@ -49,7 +47,7 @@ export function useCosmosStore() {
 function loadSyncState(): SyncState {
   const defaultState: SyncState = {
     lastSyncAt: null,
-    cooldownUntil: null,
+    cooldownUntil: null, // No longer used, kept for type compat
     isSyncing: false,
     lastSyncCount: 0,
     syncError: null,
@@ -64,7 +62,7 @@ function loadSyncState(): SyncState {
       return {
         ...defaultState,
         lastSyncAt: parsed.lastSyncAt || null,
-        cooldownUntil: parsed.cooldownUntil || null,
+        cooldownUntil: null, // Cooldown removed
         lastSyncCount: parsed.lastSyncCount || 0,
       };
     }
@@ -277,13 +275,6 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
 
     // ═══ Manual Sync ═══
     syncBookmarks: async () => {
-      // Check cooldown
-      if (state.sync.cooldownUntil) {
-        const cooldownEnd = new Date(state.sync.cooldownUntil).getTime();
-        if (Date.now() < cooldownEnd) {
-          return; // Still in cooldown
-        }
-      }
 
       // Set syncing state
       setState(prev => ({
@@ -344,13 +335,12 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
         }
 
         const now = new Date().toISOString();
-        const cooldownUntil = data.cooldownUntil || new Date(Date.now() + COOLDOWN_MS).toISOString();
 
         setState(prev => ({
           ...prev,
           sync: {
             lastSyncAt: now,
-            cooldownUntil,
+            cooldownUntil: null,
             isSyncing: false,
             lastSyncCount: data.newCount || 0,
             syncError: null,
