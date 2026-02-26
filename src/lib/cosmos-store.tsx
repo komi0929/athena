@@ -132,20 +132,29 @@ async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
     const supabase = createClient();
 
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('[Cosmos] Session check:', session ? `user=${session.user.id}` : 'no session');
     if (!session) return null;
 
-    const { data, error } = await supabase
+    // RLS policy already filters by user_id = auth.uid()
+    // No need to explicitly filter by user_id
+    const { data, error, count } = await supabase
       .from('bookmarks')
-      .select('*')
-      .eq('user_id', session.user.id)
+      .select('*', { count: 'exact' })
       .order('bookmarked_at', { ascending: false });
 
+    console.log('[Cosmos] Supabase query result:', { count, error, rowCount: data?.length });
+
     if (error) {
-      console.error('[Cosmos] Failed to fetch bookmarks:', error);
+      console.error('[Cosmos] Failed to fetch bookmarks:', error.message, error.details);
       return null;
     }
 
-    if (!data || data.length === 0) return null;
+    if (!data || data.length === 0) {
+      console.log('[Cosmos] No bookmarks found in database');
+      return null;
+    }
+
+    console.log('[Cosmos] First bookmark sample:', JSON.stringify(data[0]).slice(0, 200));
 
     // Map DB rows to Bookmark type
     return data.map((row: Record<string, unknown>) => ({
