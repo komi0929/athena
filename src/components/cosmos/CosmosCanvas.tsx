@@ -76,6 +76,11 @@ export function CosmosCanvas() {
           maxDistance={200}
           enablePan
           panSpeed={0.4}
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: undefined as unknown as THREE.MOUSE, // Allow browser context menu
+          }}
         />
       </Canvas>
     </div>
