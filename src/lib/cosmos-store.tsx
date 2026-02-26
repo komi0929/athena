@@ -182,11 +182,19 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const { createClient } = await import('./supabase');
+        const { getStoredProviderToken } = await import('./auth-provider');
         const supabase = createClient();
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) {
           throw new Error('未ログインです。再ログインしてください。');
+        }
+
+        // provider_token: prefer session (only available right after login),
+        // then fall back to localStorage (persisted from login event)
+        const providerToken = session.provider_token || getStoredProviderToken();
+        if (!providerToken) {
+          throw new Error('X APIトークンが見つかりません。一度ログアウトしてから再度Xでログインしてください。');
         }
 
         const response = await fetch('/api/sync', {
@@ -196,7 +204,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
             'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({
-            provider_token: session.provider_token || null,
+            provider_token: providerToken,
           }),
         });
 

@@ -4,6 +4,32 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { createClient } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
+// ═══ Provider Token Persistence ═══
+// Supabase only exposes provider_token during SIGNED_IN event.
+// We must capture and persist it for later use (e.g., bookmark sync).
+const PROVIDER_TOKEN_KEY = 'athena_x_provider_token';
+
+export function getStoredProviderToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(PROVIDER_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeProviderToken(token: string) {
+  try {
+    localStorage.setItem(PROVIDER_TOKEN_KEY, token);
+  } catch { /* ignore */ }
+}
+
+function clearProviderToken() {
+  try {
+    localStorage.removeItem(PROVIDER_TOKEN_KEY);
+  } catch { /* ignore */ }
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -35,12 +61,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
-    // Listen for auth changes
+    // Listen for auth changes — capture provider_token on sign-in
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
+
+        // provider_token is ONLY available during SIGNED_IN / TOKEN_REFRESHED
+        if (session?.provider_token) {
+          console.log('[Auth] Captured provider_token from', event);
+          storeProviderToken(session.provider_token);
+        }
+
+        if (event === 'SIGNED_OUT') {
+          clearProviderToken();
+        }
       }
     );
 
@@ -60,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     const supabase = createClient();
+    clearProviderToken();
     await supabase.auth.signOut();
   }, []);
 
