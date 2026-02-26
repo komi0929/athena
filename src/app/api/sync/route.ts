@@ -25,6 +25,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Parse request body for provider_token (X OAuth user access token)
+    let providerToken: string | null = null;
+    try {
+      const body = await req.json();
+      providerToken = body?.provider_token || null;
+    } catch {
+      // No body or invalid JSON — continue without provider_token
+    }
+
     // ═══ Call Edge Function with the user's JWT ═══
     const edgeFunctionUrl = `${supabaseUrl}/functions/v1/sync-x-bookmarks`;
     console.log('[Sync] Calling Edge Function with client-provided JWT');
@@ -38,6 +47,9 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
           'apikey': supabaseAnonKey,
         },
+        body: JSON.stringify({
+          provider_token: providerToken,
+        }),
       });
     } catch (fetchError) {
       console.error('[Sync] Network error:', fetchError);

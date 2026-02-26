@@ -108,14 +108,35 @@ Deno.serve(async (req: Request) => {
       || xIdentity?.id 
       || Deno.env.get('X_USER_ID');
     
-    // Get X Bearer Token — use env var (App bearer or user access token)
-    const xBearerToken = Deno.env.get('X_BEARER_TOKEN');
+    // ═══ Get X Bearer Token — prefer provider_token from request body ═══
+    // The Bookmarks API requires OAuth 2.0 User Context (user access token)
+    // An App Bearer Token will NOT work — it must be the user's own token
+    let xBearerToken: string | null = null;
+
+    // Try to get provider_token from request body
+    try {
+      const body = await req.json();
+      if (body?.provider_token) {
+        xBearerToken = body.provider_token;
+        console.log('[sync] Using provider_token from request body');
+      }
+    } catch {
+      // No body or invalid JSON
+    }
+
+    // Fallback to env var (may still fail if it's an App token, not User token)
+    if (!xBearerToken) {
+      xBearerToken = Deno.env.get('X_BEARER_TOKEN') || null;
+      if (xBearerToken) {
+        console.log('[sync] Falling back to X_BEARER_TOKEN env var');
+      }
+    }
 
     if (!xBearerToken) {
       return new Response(JSON.stringify({ 
-        error: 'X API設定エラー: X_BEARER_TOKEN が未設定です。Supabase Edge Function のシークレットに設定してください。' 
+        error: 'X APIの認証トークンがありません。一度ログアウトしてから再度Xでログインしてください。' 
       }), {
-        status: 500,
+        status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
     }

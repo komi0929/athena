@@ -195,6 +195,9 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
           },
+          body: JSON.stringify({
+            provider_token: session.provider_token || null,
+          }),
         });
 
         const text = await response.text();

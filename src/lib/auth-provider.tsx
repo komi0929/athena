@@ -53,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       provider: 'x',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: 'bookmark.read tweet.read users.read',
       },
     });
   }, []);
