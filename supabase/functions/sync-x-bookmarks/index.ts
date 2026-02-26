@@ -221,7 +221,6 @@ Deno.serve(async (req: Request) => {
       success: true,
       newCount: newTweets.length,
       totalFetched: tweets.length,
-      cooldownUntil: new Date(Date.now() + COOLDOWN_HOURS * 60 * 60 * 1000).toISOString(),
       newBookmarks: newTweets.length > 0
         ? newTweets.map((t: XBookmark) => ({
             tweet_id: t.id,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, AdaptiveDpr } from '@react-three/drei';
 import { StarField } from './StarField';
@@ -13,8 +13,19 @@ import { ZoomTracker } from './ZoomTracker';
 import * as THREE from 'three';
 
 export function CosmosCanvas() {
+  // R3F's Canvas has an internal event system that captures contextmenu.
+  // We remove that listener after creation to restore browser right-click.
+  const handleCreated = useCallback((state: { gl: THREE.WebGLRenderer }) => {
+    const canvas = state.gl.domElement;
+    // R3F attaches a contextmenu preventDefault — remove it
+    canvas.addEventListener('contextmenu', (e) => e.stopPropagation(), true);
+  }, []);
+
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#000005' }}>
+    <div
+      style={{ width: '100vw', height: '100vh', background: '#000005' }}
+      onContextMenu={undefined} // Explicitly don't block
+    >
       <Canvas
         camera={{ position: [0, 0, 120], fov: 60, near: 0.1, far: 1000 }}
         gl={{
@@ -25,6 +36,7 @@ export function CosmosCanvas() {
         }}
         dpr={[1, 2]}
         style={{ background: '#000005' }}
+        onCreated={handleCreated}
       >
         <AdaptiveDpr pixelated />
         <color attach="background" args={['#000005']} />
@@ -74,13 +86,7 @@ export function CosmosCanvas() {
           zoomSpeed={0.7}
           minDistance={5}
           maxDistance={200}
-          enablePan
-          panSpeed={0.4}
-          mouseButtons={{
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: undefined as unknown as THREE.MOUSE, // Allow browser context menu
-          }}
+          enablePan={false}
         />
       </Canvas>
     </div>
