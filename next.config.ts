@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://pbs.twimg.com https://abs.twimg.com https://*.supabase.co",
-              "connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com wss://*.supabase.co",
+              "connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com wss://*.supabase.co https://pbs.twimg.com https://abs.twimg.com https://vercel.live wss://vercel.live",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",

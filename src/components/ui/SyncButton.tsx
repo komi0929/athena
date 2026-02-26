@@ -49,6 +49,18 @@ export function SyncButton() {
     prevSyncingRef.current = sync.isSyncing;
   }, [sync.isSyncing, sync.lastSyncCount]);
 
+  // Auto-dismiss error toast
+  const [errorVisible, setErrorVisible] = useState(false);
+  useEffect(() => {
+    if (sync.syncError) {
+      setErrorVisible(true);
+      const timer = setTimeout(() => setErrorVisible(false), 8000);
+      return () => clearTimeout(timer);
+    } else {
+      setErrorVisible(false);
+    }
+  }, [sync.syncError]);
+
   const handleSync = useCallback(async () => {
     if (!canSync) return;
     await actions.syncBookmarks();
@@ -97,7 +109,7 @@ export function SyncButton() {
 
       {/* Sync error toast */}
       <AnimatePresence>
-        {sync.syncError && (
+        {errorVisible && sync.syncError && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
