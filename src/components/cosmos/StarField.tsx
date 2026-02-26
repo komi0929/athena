@@ -281,7 +281,59 @@ export function StarField() {
 
   return (
     <group>
-      {/* Outer glow layer */}
+      {/* ═══ Mesh-based visible stars (fallback + guaranteed visibility) ═══ */}
+      {filteredBookmarks.map((bm, i) => {
+        const hues = [0.05, 0.08, 0.92, 0.95, 0.85];
+        const hue = bm.is_read ? 0.6 : hues[i % hues.length];
+        const color = new THREE.Color().setHSL(hue, 0.8, 0.65);
+        const isSelected = selectedBookmark?.id === bm.id;
+        const isHovered = hoveredBookmark?.id === bm.id;
+        const scale = isSelected ? 3.0 : isHovered ? 2.0 : 1.0;
+        const baseSize = bm.is_read ? 0.6 : 1.0;
+
+        return (
+          <group key={bm.id} position={[bm.pos_x, bm.pos_y, bm.pos_z]}>
+            {/* Core bright sphere */}
+            <mesh
+              scale={baseSize * scale}
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.selectBookmark(bm);
+                window.dispatchEvent(new CustomEvent('athena-star-click'));
+              }}
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                actions.hoverBookmark(bm);
+                document.body.style.cursor = 'pointer';
+              }}
+              onPointerOut={() => {
+                actions.hoverBookmark(null);
+                document.body.style.cursor = 'default';
+              }}
+            >
+              <icosahedronGeometry args={[1, 2]} />
+              <meshBasicMaterial color={color} transparent opacity={0.95} />
+            </mesh>
+            {/* Outer glow */}
+            <mesh scale={baseSize * scale * 3}>
+              <icosahedronGeometry args={[1, 1]} />
+              <meshBasicMaterial
+                color={color}
+                transparent
+                opacity={0.15}
+                depthWrite={false}
+              />
+            </mesh>
+            {/* Bright center point */}
+            <mesh scale={baseSize * scale * 0.4}>
+              <icosahedronGeometry args={[1, 2]} />
+              <meshBasicMaterial color="white" />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {/* Outer glow layer (shader) */}
       <points ref={glowRef} frustumCulled={false} geometry={glowGeometry}>
         <shaderMaterial
           vertexShader={glowVertexShader}
@@ -293,13 +345,10 @@ export function StarField() {
         />
       </points>
 
-      {/* Core star points — with diffraction spikes */}
+      {/* Core star points — with diffraction spikes (shader) */}
       <points
         ref={coreRef}
         frustumCulled={false}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
         geometry={coreGeometry}
       >
         <shaderMaterial
