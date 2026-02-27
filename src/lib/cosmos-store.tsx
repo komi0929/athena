@@ -157,7 +157,7 @@ async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
     console.log('[Cosmos] First bookmark sample:', JSON.stringify(data[0]).slice(0, 200));
 
     // Map DB rows to Bookmark type
-    return data.map((row: Record<string, unknown>) => ({
+    const rawBookmarks = data.map((row: Record<string, unknown>) => ({
       id: String(row.id ?? row.tweet_id),
       tweet_id: String(row.tweet_id),
       tweet_url: String(row.tweet_url ?? ''),
@@ -174,6 +174,30 @@ async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
       created_at: String(row.created_at ?? new Date().toISOString()),
       bookmarked_at: row.bookmarked_at ? String(row.bookmarked_at) : undefined,
       similarity_ids: [],
+    }));
+
+    // ═══ Re-center around origin and scale for camera visibility ═══
+    // Camera is at (0, 0, 120) looking at origin, so bookmarks must be near origin
+    const cx = rawBookmarks.reduce((s, b) => s + b.pos_x, 0) / rawBookmarks.length;
+    const cy = rawBookmarks.reduce((s, b) => s + b.pos_y, 0) / rawBookmarks.length;
+    const cz = rawBookmarks.reduce((s, b) => s + b.pos_z, 0) / rawBookmarks.length;
+    
+    // Find max distance from centroid
+    const maxDist = Math.max(1, ...rawBookmarks.map(b =>
+      Math.sqrt((b.pos_x - cx) ** 2 + (b.pos_y - cy) ** 2 + (b.pos_z - cz) ** 2)
+    ));
+    
+    // Scale so that the bookmarks fill a sphere of radius ~40 centered at origin
+    const targetRadius = 40;
+    const scaleFactor = targetRadius / maxDist;
+    
+    console.log(`[Cosmos] Recentering: centroid=(${cx.toFixed(1)}, ${cy.toFixed(1)}, ${cz.toFixed(1)}), maxDist=${maxDist.toFixed(1)}, scale=${scaleFactor.toFixed(2)}`);
+
+    return rawBookmarks.map(b => ({
+      ...b,
+      pos_x: (b.pos_x - cx) * scaleFactor,
+      pos_y: (b.pos_y - cy) * scaleFactor,
+      pos_z: (b.pos_z - cz) * scaleFactor,
     }));
   } catch (e) {
     console.error('[Cosmos] Error loading bookmarks:', e);
