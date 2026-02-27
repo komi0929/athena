@@ -75,19 +75,22 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
   const groupRef = useRef<THREE.Group>(null);
   const glowRef = useRef<THREE.Mesh>(null);
 
-  // Star color
+  // Star color — use HDR values (above 1.0) so ACES tone mapping still renders bright
   const color = useMemo(() => {
     if (bookmark.is_read) {
       const t = (index * 0.618) % 1;
-      return new THREE.Color().setHSL(0.58 + t * 0.08, 0.5, 0.75);
+      return new THREE.Color().setHSL(0.58 + t * 0.08, 0.6, 0.8);
     }
     const hue = UNREAD_HUES[index % UNREAD_HUES.length];
-    return new THREE.Color().setHSL(hue, 0.8, 0.65);
+    return new THREE.Color().setHSL(hue, 0.9, 0.7);
   }, [bookmark.is_read, index]);
 
+  // HDR color for emissive-like brightness
+  const hdrColor = useMemo(() => color.clone().multiplyScalar(3.0), [color]);
+
   // Scale based on interaction state
-  const scale = isSelected ? 4.0 : isHovered ? 2.5 : 1.0;
-  const baseRadius = bookmark.is_read ? 3.5 : 6.0;
+  const scale = isSelected ? 3.0 : isHovered ? 2.0 : 1.0;
+  const baseRadius = bookmark.is_read ? 5.0 : 8.0;
 
   // Animate: gentle pulse for unread stars
   useFrame((state) => {
@@ -103,7 +106,7 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
     // Pulse glow
     if (glowRef.current) {
       const pulse = bookmark.is_read ? 1.0 : 0.8 + 0.3 * Math.sin(t * 2.0 + index * 3.0);
-      const s = baseRadius * scale * 3.5 * pulse;
+      const s = baseRadius * scale * 5.0 * pulse;
       glowRef.current.scale.set(s, s, s);
     }
   });
@@ -113,7 +116,7 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
       ref={groupRef}
       position={[bookmark.pos_x, bookmark.pos_y, bookmark.pos_z]}
     >
-      {/* Core bright sphere — always visible */}
+      {/* Core bright sphere — HDR color for visibility */}
       <mesh
         scale={baseRadius * scale}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
@@ -121,22 +124,22 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
         onPointerOut={() => onHover(false)}
       >
         <icosahedronGeometry args={[1, 3]} />
-        <meshBasicMaterial color={color} />
+        <meshBasicMaterial color={hdrColor} />
       </mesh>
 
       {/* White hot center */}
-      <mesh scale={baseRadius * scale * 0.35}>
+      <mesh scale={baseRadius * scale * 0.4}>
         <icosahedronGeometry args={[1, 2]} />
-        <meshBasicMaterial color="white" />
+        <meshBasicMaterial color={new THREE.Color(3, 3, 3)} />
       </mesh>
 
-      {/* Outer glow halo */}
-      <mesh ref={glowRef} scale={baseRadius * scale * 3.5}>
+      {/* Outer glow halo — larger and more visible */}
+      <mesh ref={glowRef} scale={baseRadius * scale * 5.0}>
         <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={0.12}
+          opacity={0.25}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
@@ -144,3 +147,4 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
     </group>
   );
 }
+
