@@ -71,17 +71,6 @@ Deno.serve(async (req: Request) => {
 
     // Cooldown removed — users can sync freely
 
-    // ═══ Get X API credentials from user's OAuth session ═══
-    // When user logs in with X, Supabase stores their identity data
-    const xIdentity = user.identities?.find(
-      (id: { provider: string }) => id.provider === 'twitter'
-    );
-    
-    // Get X User ID from identity
-    const xUserId = xIdentity?.identity_data?.provider_id 
-      || xIdentity?.id 
-      || Deno.env.get('X_USER_ID');
-    
     // ═══ Get X Bearer Token — prefer provider_token from request body ═══
     // The Bookmarks API requires OAuth 2.0 User Context (user access token)
     // An App Bearer Token will NOT work — it must be the user's own token
@@ -113,6 +102,38 @@ Deno.serve(async (req: Request) => {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // ═══ Get X User ID — use /2/users/me for accuracy ═══
+    // identity_data.provider_id can be unreliable (precision loss on large IDs)
+    let xUserId: string | null = null;
+
+    // Method 1: Call /2/users/me to get the real X user ID from the bearer token
+    try {
+      const meResponse = await fetch('https://api.twitter.com/2/users/me', {
+        headers: { 'Authorization': `Bearer ${xBearerToken}` },
+      });
+      if (meResponse.ok) {
+        const meData = await meResponse.json();
+        xUserId = meData.data?.id || null;
+        console.log('[sync] Got X user ID from /2/users/me:', xUserId);
+      } else {
+        console.warn('[sync] /2/users/me failed:', meResponse.status);
+      }
+    } catch (e) {
+      console.warn('[sync] /2/users/me network error:', e);
+    }
+
+    // Method 2: Fallback to Supabase identity data
+    if (!xUserId) {
+      const xIdentity = user.identities?.find(
+        (id: { provider: string }) => id.provider === 'twitter'
+      );
+      xUserId = xIdentity?.identity_data?.sub
+        || xIdentity?.identity_data?.provider_id
+        || Deno.env.get('X_USER_ID')
+        || null;
+      console.log('[sync] Fallback X user ID from identity:', xUserId);
     }
 
     if (!xUserId) {
