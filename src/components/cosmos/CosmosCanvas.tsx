@@ -77,12 +77,18 @@ export function CosmosCanvas() {
           speed={0.08}
         />
 
+        {/* StarField renders bookmark stars — NO Suspense to avoid font-load hiding */}
+        <StarField />
+
         <Suspense fallback={null}>
           <CosmicDust />
-          <StarField />
-          <ClusterLabels />
           <ConstellationLines />
           <MeteorEffect />
+        </Suspense>
+
+        {/* ClusterLabels uses font — separate Suspense to avoid hiding stars */}
+        <Suspense fallback={null}>
+          <ClusterLabels />
         </Suspense>
 
         <ZoomTracker />

@@ -186,7 +186,6 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
           fillOpacity={0.8}
           outlineWidth={0.06}
           outlineColor="#000005"
-          font="/fonts/NotoSansJP-Medium.woff"
         >
           {cluster.label}
           <meshBasicMaterial
