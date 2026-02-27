@@ -86,11 +86,11 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
   }, [bookmark.is_read, index]);
 
   // HDR color for emissive-like brightness
-  const hdrColor = useMemo(() => color.clone().multiplyScalar(3.0), [color]);
+  const hdrColor = useMemo(() => color.clone().multiplyScalar(2.0), [color]);
 
   // Scale based on interaction state
   const scale = isSelected ? 3.0 : isHovered ? 2.0 : 1.0;
-  const baseRadius = bookmark.is_read ? 5.0 : 8.0;
+  const baseRadius = bookmark.is_read ? 1.5 : 2.5;
 
   // Animate: gentle pulse for unread stars
   useFrame((state) => {
@@ -106,7 +106,7 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
     // Pulse glow
     if (glowRef.current) {
       const pulse = bookmark.is_read ? 1.0 : 0.8 + 0.3 * Math.sin(t * 2.0 + index * 3.0);
-      const s = baseRadius * scale * 5.0 * pulse;
+      const s = baseRadius * scale * 3.0 * pulse;
       glowRef.current.scale.set(s, s, s);
     }
   });
@@ -130,16 +130,16 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
       {/* White hot center */}
       <mesh scale={baseRadius * scale * 0.4}>
         <icosahedronGeometry args={[1, 2]} />
-        <meshBasicMaterial color={new THREE.Color(3, 3, 3)} />
+        <meshBasicMaterial color={new THREE.Color(2, 2, 2)} />
       </mesh>
 
       {/* Outer glow halo — larger and more visible */}
-      <mesh ref={glowRef} scale={baseRadius * scale * 5.0}>
+      <mesh ref={glowRef} scale={baseRadius * scale * 3.0}>
         <icosahedronGeometry args={[1, 1]} />
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={0.25}
+          opacity={0.15}
           depthWrite={false}
           side={THREE.DoubleSide}
         />
