@@ -16,12 +16,22 @@ export function StarField() {
   // Filter bookmarks by time — only recompute when bookmarks or timeFilter change
   const filteredBookmarks = useMemo(() => {
     if (timeFilter >= 1) return bookmarks;
+    if (bookmarks.length === 0) return [];
     const dates = bookmarks.map(b => new Date(b.created_at).getTime());
     const minDate = Math.min(...dates);
     const maxDate = Math.max(...dates);
     const cutoff = minDate + (maxDate - minDate) * timeFilter;
     return bookmarks.filter(b => new Date(b.created_at).getTime() <= cutoff);
   }, [bookmarks, timeFilter]);
+
+  // Debug log
+  useMemo(() => {
+    console.log(`[StarField] Rendering ${filteredBookmarks.length} bookmarks out of ${bookmarks.length} total`);
+    if (filteredBookmarks.length > 0) {
+      const sample = filteredBookmarks[0];
+      console.log(`[StarField] Sample position: (${sample.pos_x.toFixed(1)}, ${sample.pos_y.toFixed(1)}, ${sample.pos_z.toFixed(1)})`);
+    }
+  }, [filteredBookmarks, bookmarks.length]);
 
   if (filteredBookmarks.length === 0) return null;
 
@@ -77,7 +87,7 @@ function StarMesh({ bookmark, index, isSelected, isHovered, onSelect, onHover }:
 
   // Scale based on interaction state
   const scale = isSelected ? 4.0 : isHovered ? 2.5 : 1.0;
-  const baseRadius = bookmark.is_read ? 1.2 : 2.0;
+  const baseRadius = bookmark.is_read ? 3.5 : 6.0;
 
   // Animate: gentle pulse for unread stars
   useFrame((state) => {
