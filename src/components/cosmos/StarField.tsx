@@ -24,14 +24,7 @@ export function StarField() {
     return bookmarks.filter(b => new Date(b.created_at).getTime() <= cutoff);
   }, [bookmarks, timeFilter]);
 
-  // Debug log
-  useMemo(() => {
-    console.log(`[StarField] Rendering ${filteredBookmarks.length} bookmarks out of ${bookmarks.length} total`);
-    if (filteredBookmarks.length > 0) {
-      const sample = filteredBookmarks[0];
-      console.log(`[StarField] Sample position: (${sample.pos_x.toFixed(1)}, ${sample.pos_y.toFixed(1)}, ${sample.pos_z.toFixed(1)})`);
-    }
-  }, [filteredBookmarks, bookmarks.length]);
+
 
   if (filteredBookmarks.length === 0) return null;
 

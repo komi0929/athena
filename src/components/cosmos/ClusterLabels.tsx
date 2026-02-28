@@ -90,13 +90,27 @@ export function ClusterLabels() {
   );
 }
 
-function ClusterLabel({ cluster }: { cluster: { id: string; label: string; center_x: number; center_y: number; center_z: number; radius: number } }) {
+function ClusterLabel({ cluster }: { cluster: { id: string; label: string; center_x: number; center_y: number; center_z: number; radius: number; bookmark_ids: string[] } }) {
   const groupRef = useRef<THREE.Group>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const textRef = useRef<any>(null);
   const nebulaRef = useRef<THREE.Mesh>(null);
   const nebulaOuterRef = useRef<THREE.Mesh>(null);
 
   const clusterIdx = parseInt(cluster.id.split('-')[1]) || 0;
+
+  const handleClick = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('athena-cluster-click', {
+      detail: {
+        id: cluster.id,
+        center_x: cluster.center_x,
+        center_y: cluster.center_y,
+        center_z: cluster.center_z,
+        radius: cluster.radius,
+      },
+    }));
+  };
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
@@ -147,6 +161,12 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
 
   return (
     <group ref={groupRef} position={[cluster.center_x, cluster.center_y, cluster.center_z]}>
+      {/* Invisible click zone — easy to click */}
+      <mesh onClick={handleClick} onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = 'default'; }}>
+        <sphereGeometry args={[cluster.radius * 0.8, 16, 16]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+
       {/* FBM-driven inner nebula cloud */}
       <mesh ref={nebulaRef}>
         <icosahedronGeometry args={[cluster.radius * 0.7, 4]} />

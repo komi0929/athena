@@ -27,6 +27,7 @@ export interface Cluster {
   center_y: number;
   center_z: number;
   radius: number;
+  bookmark_ids: string[];
 }
 
 export interface SyncState {

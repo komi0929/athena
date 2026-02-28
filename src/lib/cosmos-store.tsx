@@ -85,44 +85,150 @@ function saveSyncState(sync: SyncState) {
   }
 }
 
-// ═══ Compute clusters from bookmarks using simple k-means-like grouping ═══
-function computeClusters(bookmarks: Bookmark[]): Cluster[] {
-  if (bookmarks.length === 0) return [];
+// ═══ Category keywords for classification ═══
+const CATEGORY_DEFS = [
+  {
+    label: 'フロントエンド',
+    center: [-45, 15, -10],
+    keywords: ['react', 'next', 'vue', 'angular', 'svelte', 'css', 'html', 'javascript', 'typescript', 'frontend', 'フロントエンド', 'tailwind', 'vite', 'webpack', 'node', 'bun', 'deno', 'npm', 'graphql', 'api', 'web', 'dom', 'component', 'ssr', 'ssg', 'hook', 'zustand', 'redux', 'vercel', 'ui', 'ux'],
+  },
+  {
+    label: 'AI・機械学習',
+    center: [40, -10, 25],
+    keywords: ['ai', 'ml', 'llm', 'gpt', 'openai', 'gemini', 'claude', 'copilot', 'cursor', 'chatgpt', '機械学習', '深層学習', 'rag', 'embedding', 'vector', 'transformer', 'diffusion', 'stable diffusion', 'midjourney', 'agent', 'prompt', 'fine-tune', 'lora', 'langchain', 'model', 'neural', 'nlp', '生成ai', '人工知能'],
+  },
+  {
+    label: 'デザイン',
+    center: [-15, -35, -35],
+    keywords: ['design', 'デザイン', 'figma', 'ui', 'ux', 'typography', 'タイポ', 'color', 'layout', 'animation', 'motion', 'glassmorphism', 'neumorphism', 'accessibility', 'a11y', 'dark mode', 'responsive', 'prototype', 'wireframe', 'branding', 'icon', 'illustration', 'font', '色彩', 'vision pro'],
+  },
+  {
+    label: 'スタートアップ',
+    center: [35, 30, -30],
+    keywords: ['startup', 'スタートアップ', 'vc', 'funding', '資金調達', 'pmf', 'saas', 'b2b', 'b2c', 'growth', 'product', 'プロダクト', 'market', 'revenue', '収益', 'yc', 'founder', 'ceo', 'cto', 'hiring', '採用', 'remote', 'team', 'business', 'ビジネス', 'marketing', 'indie', 'scale'],
+  },
+  {
+    label: '暮らし・思考',
+    center: [-5, 40, 40],
+    keywords: ['life', '暮らし', '生活', '思考', 'productivity', '生産性', 'habit', '習慣', 'mindset', 'book', '読書', '本', 'health', '健康', 'meditation', '瞑想', 'sleep', '睡眠', 'investment', '投資', 'philosophy', 'mental', 'brain', '脳', 'note', 'notion', 'writing', '執筆', 'learn', '学習'],
+  },
+];
 
-  // For small sets, create a single cluster
-  if (bookmarks.length <= 5) {
-    const cx = bookmarks.reduce((s, b) => s + b.pos_x, 0) / bookmarks.length;
-    const cy = bookmarks.reduce((s, b) => s + b.pos_y, 0) / bookmarks.length;
-    const cz = bookmarks.reduce((s, b) => s + b.pos_z, 0) / bookmarks.length;
-    const maxDist = Math.max(...bookmarks.map(b =>
-      Math.sqrt((b.pos_x - cx) ** 2 + (b.pos_y - cy) ** 2 + (b.pos_z - cz) ** 2)
-    ));
-    return [{
-      id: 'cluster-0',
-      label: 'ブックマーク',
-      center_x: cx,
-      center_y: cy,
-      center_z: cz,
-      radius: Math.max(maxDist + 5, 15),
-    }];
+// ═══ Classify a bookmark into a category ═══
+function classifyBookmark(bm: Bookmark): number {
+  const text = `${bm.text} ${bm.ogp_title || ''} ${bm.ogp_description || ''}`.toLowerCase();
+  let bestScore = 0;
+  let bestIdx = -1;
+
+  for (let i = 0; i < CATEGORY_DEFS.length; i++) {
+    let score = 0;
+    for (const kw of CATEGORY_DEFS[i].keywords) {
+      if (text.includes(kw)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+  return bestIdx; // -1 = uncategorized
+}
+
+// ═══ Simple seeded random for positioning ═══
+function seededRandom(seed: number) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function gaussianRand(mean: number, std: number, seed: number) {
+  const u1 = seededRandom(seed) + 0.001;
+  const u2 = seededRandom(seed + 0.5);
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + z * std;
+}
+
+// ═══ Compute clusters from bookmarks — keyword-based categorization ═══
+function computeClusters(bookmarks: Bookmark[]): { clusters: Cluster[]; repositioned: Bookmark[] } {
+  if (bookmarks.length === 0) return { clusters: [], repositioned: [] };
+
+  // Classify each bookmark
+  const assignments: number[] = bookmarks.map(bm => classifyBookmark(bm));
+
+  // Group bookmarks by category
+  const groups: Map<number, Bookmark[]> = new Map();
+  for (let i = 0; i < bookmarks.length; i++) {
+    const cat = assignments[i];
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat)!.push(bookmarks[i]);
   }
 
-  // For larger sets, create a few clusters based on spatial distribution
-  const cx = bookmarks.reduce((s, b) => s + b.pos_x, 0) / bookmarks.length;
-  const cy = bookmarks.reduce((s, b) => s + b.pos_y, 0) / bookmarks.length;
-  const cz = bookmarks.reduce((s, b) => s + b.pos_z, 0) / bookmarks.length;
-  const maxDist = Math.max(...bookmarks.map(b =>
-    Math.sqrt((b.pos_x - cx) ** 2 + (b.pos_y - cy) ** 2 + (b.pos_z - cz) ** 2)
-  ));
+  // "Other" category for unclassified (-1)
+  const otherCenter = [0, -40, 0];
+  
+  const clusters: Cluster[] = [];
+  const repositioned: Bookmark[] = [];
 
-  return [{
-    id: 'cluster-0',
-    label: '星雲',
-    center_x: cx,
-    center_y: cy,
-    center_z: cz,
-    radius: Math.max(maxDist + 5, 15),
-  }];
+  // Process each category that has bookmarks
+  for (const [catIdx, catBookmarks] of groups) {
+    const center = catIdx >= 0 ? CATEGORY_DEFS[catIdx].center : otherCenter;
+    const label = catIdx >= 0 ? CATEGORY_DEFS[catIdx].label : 'その他';
+    const clusterId = `cluster-${catIdx >= 0 ? catIdx : 'other'}`;
+
+    // Reposition bookmarks around cluster center with Gaussian spread
+    const spread = Math.max(8, catBookmarks.length * 1.5); // Larger groups spread more
+    const bmIds: string[] = [];
+
+    for (let i = 0; i < catBookmarks.length; i++) {
+      const bm = catBookmarks[i];
+      const seed = parseInt(bm.tweet_id.slice(-6), 10) || (i * 137);
+      bmIds.push(bm.id);
+
+      repositioned.push({
+        ...bm,
+        pos_x: gaussianRand(center[0], spread, seed),
+        pos_y: gaussianRand(center[1], spread, seed + 100),
+        pos_z: gaussianRand(center[2], spread, seed + 200),
+      });
+    }
+
+    // Compute actual radius after positioning
+    const maxDist = Math.max(...repositioned.slice(-catBookmarks.length).map(b =>
+      Math.sqrt((b.pos_x - center[0]) ** 2 + (b.pos_y - center[1]) ** 2 + (b.pos_z - center[2]) ** 2)
+    ));
+
+    clusters.push({
+      id: clusterId,
+      label,
+      center_x: center[0],
+      center_y: center[1],
+      center_z: center[2],
+      radius: Math.max(maxDist + 5, 15),
+      bookmark_ids: bmIds,
+    });
+  }
+
+  // Compute similarity_ids — closest 3-4 bookmarks within same cluster
+  for (const bm of repositioned) {
+    const sameCluster = repositioned.filter(other =>
+      other.id !== bm.id &&
+      clusters.some(c => c.bookmark_ids.includes(bm.id) && c.bookmark_ids.includes(other.id))
+    );
+    const distances = sameCluster
+      .map(other => ({
+        id: other.id,
+        dist: Math.sqrt(
+          (bm.pos_x - other.pos_x) ** 2 +
+          (bm.pos_y - other.pos_y) ** 2 +
+          (bm.pos_z - other.pos_z) ** 2
+        ),
+      }))
+      .sort((a, b) => a.dist - b.dist);
+
+    bm.similarity_ids = distances.slice(0, 4).map(d => d.id);
+  }
+
+  console.log(`[Cosmos] Categorization: ${clusters.map(c => `${c.label}(${c.bookmark_ids.length})`).join(', ')}`);
+
+  return { clusters, repositioned };
 }
 
 // ═══ Load bookmarks from Supabase ═══
@@ -156,8 +262,8 @@ async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
 
     console.log('[Cosmos] First bookmark sample:', JSON.stringify(data[0]).slice(0, 200));
 
-    // Map DB rows to Bookmark type
-    const rawBookmarks = data.map((row: Record<string, unknown>) => ({
+    // Map DB rows to Bookmark type (positions will be reassigned by computeClusters)
+    return data.map((row: Record<string, unknown>) => ({
       id: String(row.id ?? row.tweet_id),
       tweet_id: String(row.tweet_id),
       tweet_url: String(row.tweet_url ?? ''),
@@ -174,30 +280,6 @@ async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
       created_at: String(row.created_at ?? new Date().toISOString()),
       bookmarked_at: row.bookmarked_at ? String(row.bookmarked_at) : undefined,
       similarity_ids: [],
-    }));
-
-    // ═══ Re-center around origin and scale for camera visibility ═══
-    // Camera is at (0, 0, 120) looking at origin, so bookmarks must be near origin
-    const cx = rawBookmarks.reduce((s, b) => s + b.pos_x, 0) / rawBookmarks.length;
-    const cy = rawBookmarks.reduce((s, b) => s + b.pos_y, 0) / rawBookmarks.length;
-    const cz = rawBookmarks.reduce((s, b) => s + b.pos_z, 0) / rawBookmarks.length;
-    
-    // Find max distance from centroid
-    const maxDist = Math.max(1, ...rawBookmarks.map(b =>
-      Math.sqrt((b.pos_x - cx) ** 2 + (b.pos_y - cy) ** 2 + (b.pos_z - cz) ** 2)
-    ));
-    
-    // Scale so that the bookmarks fill a sphere of radius ~40 centered at origin
-    const targetRadius = 40;
-    const scaleFactor = targetRadius / maxDist;
-    
-    console.log(`[Cosmos] Recentering: centroid=(${cx.toFixed(1)}, ${cy.toFixed(1)}, ${cz.toFixed(1)}), maxDist=${maxDist.toFixed(1)}, scale=${scaleFactor.toFixed(2)}`);
-
-    return rawBookmarks.map(b => ({
-      ...b,
-      pos_x: (b.pos_x - cx) * scaleFactor,
-      pos_y: (b.pos_y - cy) * scaleFactor,
-      pos_z: (b.pos_z - cz) * scaleFactor,
     }));
   } catch (e) {
     console.error('[Cosmos] Error loading bookmarks:', e);
@@ -230,10 +312,10 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
     const realBookmarks = await fetchBookmarksFromSupabase();
     if (realBookmarks && realBookmarks.length > 0) {
       console.log(`[Cosmos] Loaded ${realBookmarks.length} bookmarks from Supabase`);
-      const clusters = computeClusters(realBookmarks);
+      const { clusters, repositioned } = computeClusters(realBookmarks);
       setState(prev => ({
         ...prev,
-        bookmarks: realBookmarks,
+        bookmarks: repositioned,
         clusters,
         isLoading: false,
       }));

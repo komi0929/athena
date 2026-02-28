@@ -88,6 +88,7 @@ export function generateMockData(): { bookmarks: Bookmark[]; clusters: Cluster[]
     center_y: c.cy,
     center_z: c.cz,
     radius: 15,
+    bookmark_ids: [],
   }));
 
   const bookmarks: Bookmark[] = [];
