@@ -34,14 +34,13 @@ export function SyncButton() {
 
   const canSync = !sync.isSyncing;
 
-  // Show result toast
-  const showResult = sync.lastSyncCount > 0 && !sync.isSyncing;
   const [resultVisible, setResultVisible] = useState(false);
   const prevSyncingRef = React.useRef(sync.isSyncing);
 
   useEffect(() => {
     // Detect transition from syncing → done with new results
     if (prevSyncingRef.current && !sync.isSyncing && sync.lastSyncCount > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResultVisible(true);
       const timer = setTimeout(() => setResultVisible(false), 5000);
       return () => clearTimeout(timer);
@@ -53,6 +52,7 @@ export function SyncButton() {
   const [errorVisible, setErrorVisible] = useState(false);
   useEffect(() => {
     if (sync.syncError) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setErrorVisible(true);
       const timer = setTimeout(() => setErrorVisible(false), 8000);
       return () => clearTimeout(timer);

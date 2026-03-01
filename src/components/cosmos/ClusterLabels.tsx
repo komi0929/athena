@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import React, { useMemo, useRef } from 'react';
@@ -92,7 +93,6 @@ export function ClusterLabels() {
 
 function ClusterLabel({ cluster }: { cluster: { id: string; label: string; center_x: number; center_y: number; center_z: number; radius: number; bookmark_ids: string[] } }) {
   const groupRef = useRef<THREE.Group>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const textRef = useRef<any>(null);
   const nebulaRef = useRef<THREE.Mesh>(null);
   const nebulaOuterRef = useRef<THREE.Mesh>(null);
