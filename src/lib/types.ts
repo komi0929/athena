@@ -44,7 +44,6 @@ export interface CosmosState {
   selectedBookmark: Bookmark | null;
   hoveredBookmark: Bookmark | null;
   zoomLevel: number;
-  timeFilter: number; // 0-1, percentage of time range
   audioEnabled: boolean;
   isLoading: boolean;
   sync: SyncState;

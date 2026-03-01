@@ -13,7 +13,6 @@ interface CosmosActions {
   hoverBookmark: (bookmark: Bookmark | null) => void;
   markAsRead: (id: string) => void;
   setZoomLevel: (level: number) => void;
-  setTimeFilter: (value: number) => void;
   toggleAudio: () => void;
   addMeteor: (from: [number, number, number], to: [number, number, number]) => void;
   getFilteredBookmarks: () => Bookmark[];
@@ -85,44 +84,74 @@ function saveSyncState(sync: SyncState) {
   }
 }
 
-// ═══ Category keywords for classification ═══
-const CATEGORY_DEFS = [
-  {
-    label: 'フロントエンド',
-    center: [-45, 15, -10],
-    keywords: ['react', 'next', 'vue', 'angular', 'svelte', 'css', 'html', 'javascript', 'typescript', 'frontend', 'フロントエンド', 'tailwind', 'vite', 'webpack', 'node', 'bun', 'deno', 'npm', 'graphql', 'api', 'web', 'dom', 'component', 'ssr', 'ssg', 'hook', 'zustand', 'redux', 'vercel', 'ui', 'ux'],
-  },
-  {
-    label: 'AI・機械学習',
-    center: [40, -10, 25],
-    keywords: ['ai', 'ml', 'llm', 'gpt', 'openai', 'gemini', 'claude', 'copilot', 'cursor', 'chatgpt', '機械学習', '深層学習', 'rag', 'embedding', 'vector', 'transformer', 'diffusion', 'stable diffusion', 'midjourney', 'agent', 'prompt', 'fine-tune', 'lora', 'langchain', 'model', 'neural', 'nlp', '生成ai', '人工知能'],
-  },
-  {
-    label: 'デザイン',
-    center: [-15, -35, -35],
-    keywords: ['design', 'デザイン', 'figma', 'ui', 'ux', 'typography', 'タイポ', 'color', 'layout', 'animation', 'motion', 'glassmorphism', 'neumorphism', 'accessibility', 'a11y', 'dark mode', 'responsive', 'prototype', 'wireframe', 'branding', 'icon', 'illustration', 'font', '色彩', 'vision pro'],
-  },
-  {
-    label: 'スタートアップ',
-    center: [35, 30, -30],
-    keywords: ['startup', 'スタートアップ', 'vc', 'funding', '資金調達', 'pmf', 'saas', 'b2b', 'b2c', 'growth', 'product', 'プロダクト', 'market', 'revenue', '収益', 'yc', 'founder', 'ceo', 'cto', 'hiring', '採用', 'remote', 'team', 'business', 'ビジネス', 'marketing', 'indie', 'scale'],
-  },
-  {
-    label: '暮らし・思考',
-    center: [-5, 40, 40],
-    keywords: ['life', '暮らし', '生活', '思考', 'productivity', '生産性', 'habit', '習慣', 'mindset', 'book', '読書', '本', 'health', '健康', 'meditation', '瞑想', 'sleep', '睡眠', 'investment', '投資', 'philosophy', 'mental', 'brain', '脳', 'note', 'notion', 'writing', '執筆', 'learn', '学習'],
-  },
+// ═══ Dynamic Category System ═══
+const CATEGORIES_STORAGE_KEY = 'athena_user_categories';
+
+interface CategoryDef {
+  label: string;
+  center: number[];
+  keywords: string[];
+}
+
+// Default fallback categories
+const DEFAULT_CATEGORIES: CategoryDef[] = [
+  { label: 'テクノロジー', center: [-45, 15, -10], keywords: ['react', 'next', 'vue', 'css', 'javascript', 'typescript', 'api', 'web', 'node', 'vercel', 'github'] },
+  { label: 'AI・機械学習', center: [40, -10, 25], keywords: ['ai', 'ml', 'llm', 'gpt', 'openai', 'gemini', 'claude', 'chatgpt', '機械学習', 'rag', 'agent', 'prompt'] },
+  { label: 'デザイン', center: [-15, -35, -35], keywords: ['design', 'デザイン', 'figma', 'ui', 'ux', 'typography', 'color', 'animation', 'font'] },
+  { label: 'ビジネス', center: [35, 30, -30], keywords: ['startup', 'スタートアップ', 'vc', 'saas', 'growth', 'product', 'business', 'ビジネス', 'marketing'] },
+  { label: '暮らし', center: [-5, 40, 40], keywords: ['life', '暮らし', '生活', '思考', 'productivity', 'habit', 'book', '読書', 'health', '健康', 'investment'] },
+  { label: 'その他', center: [0, -40, 0], keywords: [] },
 ];
 
+function loadCategoryDefs(): CategoryDef[] {
+  if (typeof window === 'undefined') return DEFAULT_CATEGORIES;
+  try {
+    const stored = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_CATEGORIES;
+}
+
+function saveCategoryDefs(categories: CategoryDef[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+  } catch { /* ignore */ }
+}
+
+// Fetch AI-generated categories from /api/categorize
+async function fetchAICategories(bookmarkTexts: string[]): Promise<CategoryDef[] | null> {
+  try {
+    const res = await fetch('/api/categorize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts: bookmarkTexts }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.categories && Array.isArray(data.categories)) {
+      console.log(`[Cosmos] AI categories (${data.source}):`, data.categories.map((c: CategoryDef) => c.label).join(', '));
+      return data.categories;
+    }
+  } catch (e) {
+    console.error('[Cosmos] Failed to fetch AI categories:', e);
+  }
+  return null;
+}
+
 // ═══ Classify a bookmark into a category ═══
-function classifyBookmark(bm: Bookmark): number {
+function classifyBookmark(bm: Bookmark, categories: CategoryDef[]): number {
   const text = `${bm.text} ${bm.ogp_title || ''} ${bm.ogp_description || ''}`.toLowerCase();
   let bestScore = 0;
   let bestIdx = -1;
 
-  for (let i = 0; i < CATEGORY_DEFS.length; i++) {
+  for (let i = 0; i < categories.length; i++) {
+    if (!categories[i].keywords || categories[i].keywords.length === 0) continue;
     let score = 0;
-    for (const kw of CATEGORY_DEFS[i].keywords) {
+    for (const kw of categories[i].keywords) {
       if (text.includes(kw)) score++;
     }
     if (score > bestScore) {
@@ -130,7 +159,12 @@ function classifyBookmark(bm: Bookmark): number {
       bestIdx = i;
     }
   }
-  return bestIdx; // -1 = uncategorized
+  // If no category matched, assign to "その他" (last category) or -1
+  if (bestIdx === -1) {
+    const otherIdx = categories.findIndex(c => c.label === 'その他');
+    return otherIdx >= 0 ? otherIdx : categories.length - 1;
+  }
+  return bestIdx;
 }
 
 // ═══ Simple seeded random for positioning ═══
@@ -147,11 +181,11 @@ function gaussianRand(mean: number, std: number, seed: number) {
 }
 
 // ═══ Compute clusters from bookmarks — keyword-based categorization ═══
-function computeClusters(bookmarks: Bookmark[]): { clusters: Cluster[]; repositioned: Bookmark[] } {
+function computeClusters(bookmarks: Bookmark[], categories: CategoryDef[]): { clusters: Cluster[]; repositioned: Bookmark[] } {
   if (bookmarks.length === 0) return { clusters: [], repositioned: [] };
 
   // Classify each bookmark
-  const assignments: number[] = bookmarks.map(bm => classifyBookmark(bm));
+  const assignments: number[] = bookmarks.map(bm => classifyBookmark(bm, categories));
 
   // Group bookmarks by category
   const groups: Map<number, Bookmark[]> = new Map();
@@ -160,18 +194,15 @@ function computeClusters(bookmarks: Bookmark[]): { clusters: Cluster[]; repositi
     if (!groups.has(cat)) groups.set(cat, []);
     groups.get(cat)!.push(bookmarks[i]);
   }
-
-  // "Other" category for unclassified (-1)
-  const otherCenter = [0, -40, 0];
   
   const clusters: Cluster[] = [];
   const repositioned: Bookmark[] = [];
 
   // Process each category that has bookmarks
   for (const [catIdx, catBookmarks] of groups) {
-    const center = catIdx >= 0 ? CATEGORY_DEFS[catIdx].center : otherCenter;
-    const label = catIdx >= 0 ? CATEGORY_DEFS[catIdx].label : 'その他';
-    const clusterId = `cluster-${catIdx >= 0 ? catIdx : 'other'}`;
+    const center = categories[catIdx]?.center || [0, -40, 0];
+    const label = categories[catIdx]?.label || 'その他';
+    const clusterId = `cluster-${catIdx}`;
 
     // Reposition bookmarks around cluster center with Gaussian spread
     const spread = Math.max(8, catBookmarks.length * 1.5); // Larger groups spread more
@@ -297,7 +328,6 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       selectedBookmark: null,
       hoveredBookmark: null,
       zoomLevel: 1,
-      timeFilter: 1,
       audioEnabled: false,
       isLoading: true, // Start as loading
       sync: loadSyncState(),
@@ -312,7 +342,22 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
     const realBookmarks = await fetchBookmarksFromSupabase();
     if (realBookmarks && realBookmarks.length > 0) {
       console.log(`[Cosmos] Loaded ${realBookmarks.length} bookmarks from Supabase`);
-      const { clusters, repositioned } = computeClusters(realBookmarks);
+      
+      // Load or generate categories
+      let categories = loadCategoryDefs();
+      const isDefault = categories === DEFAULT_CATEGORIES || !localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      
+      // If using default categories, try AI categorization
+      if (isDefault && realBookmarks.length >= 3) {
+        const texts = realBookmarks.map(bm => `${bm.text} ${bm.ogp_title || ''}`.trim());
+        const aiCats = await fetchAICategories(texts);
+        if (aiCats && aiCats.length > 0) {
+          categories = aiCats;
+          saveCategoryDefs(aiCats);
+        }
+      }
+      
+      const { clusters, repositioned } = computeClusters(realBookmarks, categories);
       setState(prev => ({
         ...prev,
         bookmarks: repositioned,
@@ -361,9 +406,6 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
     setZoomLevel: (level) => {
       setState(prev => ({ ...prev, zoomLevel: level }));
     },
-    setTimeFilter: (value) => {
-      setState(prev => ({ ...prev, timeFilter: value }));
-    },
     toggleAudio: () => {
       setState(prev => ({ ...prev, audioEnabled: !prev.audioEnabled }));
     },
@@ -376,12 +418,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }, 2000);
     },
     getFilteredBookmarks: () => {
-      if (state.timeFilter >= 1) return state.bookmarks;
-      const dates = state.bookmarks.map(b => new Date(b.created_at).getTime());
-      const minDate = Math.min(...dates);
-      const maxDate = Math.max(...dates);
-      const cutoff = minDate + (maxDate - minDate) * state.timeFilter;
-      return state.bookmarks.filter(b => new Date(b.created_at).getTime() <= cutoff);
+      return state.bookmarks;
     },
     getSimilarBookmarks: (bookmark) => {
       if (!bookmark.similarity_ids) return [];
@@ -484,7 +521,7 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
     },
 
     getSyncState: () => state.sync,
-  }), [state.bookmarks, state.timeFilter, state.sync, loadRealBookmarks]);
+  }), [state.bookmarks, state.sync, loadRealBookmarks]);
 
   // Remove expired meteors
   useEffect(() => {

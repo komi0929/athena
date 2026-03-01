@@ -1,6 +1,6 @@
 // Supabase Edge Function: sync-x-bookmarks
-// Fetches bookmarks from X API with HARD-CODED max_results=20
-// Cost per call: $0.10 (20 reads × $0.005)
+// Fetches bookmarks from X API with HARD-CODED max_results=30
+// Cost per call: $0.15 (30 reads × $0.005)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.97.0';
 
@@ -146,7 +146,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const xApiUrl = new URL(`https://api.twitter.com/2/users/${xUserId}/bookmarks`);
-    xApiUrl.searchParams.set('max_results', '20'); // 【絶対制約】固定20件
+    xApiUrl.searchParams.set('max_results', '30'); // 【絶対制約】固定30件
     xApiUrl.searchParams.set('tweet.fields', 'created_at,text,author_id,entities');
     xApiUrl.searchParams.set('expansions', 'author_id');
     xApiUrl.searchParams.set('user.fields', 'name,username');
@@ -235,7 +235,7 @@ Deno.serve(async (req: Request) => {
     await supabase.from('sync_log').insert({
       user_id: user.id,
       new_count: newTweets.length,
-      api_cost_usd: 0.1000,
+      api_cost_usd: 0.1500,
     });
 
     return new Response(JSON.stringify({

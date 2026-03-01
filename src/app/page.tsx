@@ -6,9 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-provider';
 import { CosmosProvider } from '@/lib/cosmos-store';
 import { DetailCard } from '@/components/ui/DetailCard';
-import { TimelapseSlider } from '@/components/ui/TimelapseSlider';
 import { AudioManager } from '@/components/audio/AudioManager';
 import { SyncButton } from '@/components/ui/SyncButton';
+import { OnboardingGuide } from '@/components/ui/OnboardingGuide';
 import { LoginScreen } from '@/components/auth/LoginScreen';
 
 const CosmosCanvas = dynamic(
@@ -75,9 +75,9 @@ export default function AthenaApp() {
 
         {/* UI Overlays */}
         <DetailCard />
-        <TimelapseSlider />
         <AudioManager />
         <SyncButton />
+        <OnboardingGuide />
 
         {/* User avatar — sign out */}
         <UserBadge />

@@ -46,24 +46,13 @@ const getGlowTexture = () => {
  * Uses Additive Blending and Canvas Textures for an ethereal, high-fidelity look.
  */
 export function StarField() {
-  const { bookmarks, actions, timeFilter, selectedBookmark, hoveredBookmark } = useCosmosStore();
+  const { bookmarks, actions, selectedBookmark, hoveredBookmark } = useCosmosStore();
 
-  // Filter bookmarks by time — only recompute when bookmarks or timeFilter change
-  const filteredBookmarks = useMemo(() => {
-    if (timeFilter >= 1) return bookmarks;
-    if (bookmarks.length === 0) return [];
-    const dates = bookmarks.map(b => new Date(b.created_at).getTime());
-    const minDate = Math.min(...dates);
-    const maxDate = Math.max(...dates);
-    const cutoff = minDate + (maxDate - minDate) * timeFilter;
-    return bookmarks.filter(b => new Date(b.created_at).getTime() <= cutoff);
-  }, [bookmarks, timeFilter]);
-
-  if (filteredBookmarks.length === 0) return null;
+  if (bookmarks.length === 0) return null;
 
   return (
     <group>
-      {filteredBookmarks.map((bm, i) => (
+      {bookmarks.map((bm, i) => (
         <StarMesh
           key={bm.id}
           bookmark={bm}
