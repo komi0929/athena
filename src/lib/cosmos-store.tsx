@@ -406,10 +406,29 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
       }));
     },
     hideBookmark: async (id) => {
-      // Remove from local state immediately
+      // Find bookmark position for the falling star animation
+      const bookmark = state.bookmarks.find(b => b.id === id);
+      if (!bookmark) return;
+
+      // Close the detail card immediately
+      setState(prev => ({ ...prev, selectedBookmark: null }));
+
+      // Dispatch falling star animation event
+      window.dispatchEvent(new CustomEvent('athena-star-falling', {
+        detail: {
+          id,
+          x: bookmark.pos_x,
+          y: bookmark.pos_y,
+          z: bookmark.pos_z,
+        },
+      }));
+
+      // Wait for animation to play (star streaks away ~1s before fading)
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Remove from local state
       setState(prev => {
         const newBookmarks = prev.bookmarks.filter(b => b.id !== id);
-        // Also remove from cluster bookmark_ids
         const newClusters = prev.clusters.map(c => ({
           ...c,
           bookmark_ids: c.bookmark_ids.filter(bid => bid !== id),
@@ -418,9 +437,9 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           bookmarks: newBookmarks,
           clusters: newClusters,
-          selectedBookmark: prev.selectedBookmark?.id === id ? null : prev.selectedBookmark,
         };
       });
+
       // Persist to Supabase (soft delete via is_hidden column)
       try {
         const { createClient } = await import('./supabase');

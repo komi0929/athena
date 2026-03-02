@@ -7,6 +7,7 @@ import { StarField } from './StarField';
 import { ClusterLabels } from './ClusterLabels';
 import { ConstellationLines } from './ConstellationLines';
 import { MeteorEffect } from './MeteorEffect';
+import { FallingStarEffect } from './FallingStarEffect';
 import { CosmicDust } from './CosmicDust';
 import { PostProcessing } from './PostProcessing';
 import { ZoomTracker } from './ZoomTracker';
@@ -123,6 +124,7 @@ export function CosmosCanvas() {
           <CosmicDust />
           <ConstellationLines />
           <MeteorEffect />
+          <FallingStarEffect />
         </Suspense>
 
         <Suspense fallback={null}>
