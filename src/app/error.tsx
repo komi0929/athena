@@ -1,11 +1,18 @@
-import Link from 'next/link';
+'use client';
+
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function NotFound() {
+export default function ErrorPage({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <div
       style={{
@@ -25,12 +32,12 @@ export default function NotFound() {
         style={{
           fontSize: '64px',
           fontWeight: 200,
-          color: 'rgba(100, 160, 255, 0.3)',
+          color: 'rgba(255, 100, 100, 0.3)',
           margin: 0,
           letterSpacing: '0.3em',
         }}
       >
-        404
+        500
       </p>
       <p
         style={{
@@ -40,24 +47,24 @@ export default function NotFound() {
           margin: 0,
         }}
       >
-        この星域は存在しません
+        星系に障害が発生しています
       </p>
-      <Link
-        href="/"
+      <button
+        onClick={reset}
         style={{
           marginTop: '24px',
           padding: '10px 28px',
           color: 'rgba(100, 160, 255, 0.6)',
           border: '1px solid rgba(100, 160, 255, 0.15)',
           borderRadius: '100px',
-          textDecoration: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
           fontSize: '12px',
           letterSpacing: '0.15em',
-          transition: 'all 0.3s',
         }}
       >
-        ホームへ戻る
-      </Link>
+        再試行する
+      </button>
     </div>
   );
 }

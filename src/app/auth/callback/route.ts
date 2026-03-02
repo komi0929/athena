@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   let next = searchParams.get('next') ?? '/';
-  if (!next.startsWith('/')) {
+  if (!next.startsWith('/') || next.startsWith('//')) {
     next = '/';
   }
 

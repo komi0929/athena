@@ -80,6 +80,7 @@ export function DetailCard() {
               {/* Close button */}
               <motion.button
                 onClick={() => actions.selectBookmark(null)}
+                aria-label="カードを閉じる"
                 whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.12)' }}
                 whileTap={{ scale: 0.9 }}
                 style={{
