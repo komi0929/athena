@@ -3,7 +3,7 @@
 
 import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Text, Billboard } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { useCosmosStore } from '@/lib/cosmos-store';
 import * as THREE from 'three';
 
@@ -79,8 +79,15 @@ const nebulaFragmentShader = `
   }
 `;
 
+// ═══ Color palettes for clusters ═══
+const LABEL_COLORS = ['#6688ff', '#9966ff', '#ff6699', '#66ddaa', '#ffaa66'];
+const NEBULA_COLORS_INNER = ['#3344aa', '#5522aa', '#aa3366', '#22aa66', '#aa6622'];
+const NEBULA_COLORS_OUTER = ['#4466cc', '#7744cc', '#cc4488', '#44cc88', '#cc8844'];
+
 export function ClusterLabels() {
   const { clusters } = useCosmosStore();
+
+  if (clusters.length === 0) return null;
 
   return (
     <group>
@@ -93,13 +100,13 @@ export function ClusterLabels() {
 
 function ClusterLabel({ cluster }: { cluster: { id: string; label: string; center_x: number; center_y: number; center_z: number; radius: number; bookmark_ids: string[] } }) {
   const groupRef = useRef<THREE.Group>(null);
-  const textRef = useRef<any>(null);
   const nebulaRef = useRef<THREE.Mesh>(null);
   const nebulaOuterRef = useRef<THREE.Mesh>(null);
+  const labelDivRef = useRef<HTMLDivElement>(null);
 
   const clusterIdx = parseInt(cluster.id.split('-')[1]) || 0;
 
-  const handleClick = (e: { stopPropagation: () => void }) => {
+  const handleClick = (e: React.MouseEvent | { stopPropagation: () => void }) => {
     e.stopPropagation();
     window.dispatchEvent(new CustomEvent('athena-cluster-click', {
       detail: {
@@ -114,17 +121,13 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
-    uColor: { value: new THREE.Color(
-      ['#3344aa', '#5522aa', '#aa3366', '#22aa66', '#aa6622'][clusterIdx % 5]
-    )},
+    uColor: { value: new THREE.Color(NEBULA_COLORS_INNER[clusterIdx % 5]) },
     uOpacity: { value: 0.15 },
   }), [clusterIdx]);
 
   const outerUniforms = useMemo(() => ({
     uTime: { value: 0 },
-    uColor: { value: new THREE.Color(
-      ['#4466cc', '#7744cc', '#cc4488', '#44cc88', '#cc8844'][clusterIdx % 5]
-    )},
+    uColor: { value: new THREE.Color(NEBULA_COLORS_OUTER[clusterIdx % 5]) },
     uOpacity: { value: 0.06 },
   }), [clusterIdx]);
 
@@ -136,14 +139,13 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
     uniforms.uTime.value = t;
     outerUniforms.uTime.value = t;
 
-    // Label visibility — always show but brighter when far
-    const labelOpacity = THREE.MathUtils.clamp(
-      THREE.MathUtils.smoothstep(camDist, 30, 80),
-      0.4, 1.0
-    );
-    if (textRef.current?.material) {
-      textRef.current.material.opacity = labelOpacity;
-      textRef.current.visible = true;
+    // Update label opacity directly via DOM — no React re-render
+    if (labelDivRef.current) {
+      const opacity = THREE.MathUtils.clamp(
+        THREE.MathUtils.smoothstep(camDist, 30, 80),
+        0.5, 1.0
+      );
+      labelDivRef.current.style.opacity = String(opacity);
     }
 
     // Nebula slow rotation
@@ -157,10 +159,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
     }
   });
 
-  const glowColor = useMemo(() => {
-    const colors = ['#4466cc', '#7744cc', '#cc4488', '#44cc88', '#cc8844'];
-    return colors[clusterIdx % colors.length];
-  }, [clusterIdx]);
+  const glowColor = LABEL_COLORS[clusterIdx % LABEL_COLORS.length];
 
   return (
     <group ref={groupRef} position={[cluster.center_x, cluster.center_y, cluster.center_z]}>
@@ -198,28 +197,48 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
         />
       </mesh>
 
-      {/* Label text */}
-      <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        <Text
-          ref={textRef}
-          font="/NotoSansJP-Regular.woff2"
-          fontSize={2.8}
-          color={glowColor}
-          anchorX="center"
-          anchorY="middle"
-          fillOpacity={0.8}
-          outlineWidth={0.06}
-          outlineColor="#000005"
+      {/* ═══ Label — HTML overlay for guaranteed Japanese text rendering ═══ */}
+      <Html
+        center
+        distanceFactor={25}
+        style={{
+          pointerEvents: 'none',
+          userSelect: 'none',
+          whiteSpace: 'nowrap',
+        }}
+        // Place label above cluster center
+        position={[0, cluster.radius * 0.6 + 3, 0]}
+      >
+        <div
+          ref={labelDivRef}
+          onClick={handleClick}
+          style={{
+            pointerEvents: 'auto',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: 600,
+            fontFamily: "'Noto Sans JP', 'Inter', 'Hiragino Kaku Gothic ProN', sans-serif",
+            color: glowColor,
+            opacity: 0.8,
+            textShadow: `0 0 12px ${glowColor}80, 0 0 30px ${glowColor}40, 0 0 4px rgba(0,0,0,0.9)`,
+            letterSpacing: '0.15em',
+            transition: 'opacity 0.3s ease',
+            textAlign: 'center',
+          }}
         >
           {cluster.label}
-          <meshBasicMaterial
-            color={glowColor}
-            transparent
-            opacity={0.8}
-            toneMapped={false}
-          />
-        </Text>
-      </Billboard>
+          {/* Star count badge */}
+          <div style={{
+            fontSize: '9px',
+            fontWeight: 400,
+            color: `${glowColor}99`,
+            marginTop: '2px',
+            letterSpacing: '0.08em',
+          }}>
+            ✦ {cluster.bookmark_ids.length}
+          </div>
+        </div>
+      </Html>
     </group>
   );
 }
