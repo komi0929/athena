@@ -224,8 +224,8 @@ export function DetailCard() {
                   gap: '8px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <span style={{
+                {/* Date only — no read/unread label */}
+                <span style={{
                     fontSize: '10px',
                     color: 'rgba(255, 255, 255, 0.3)',
                     fontFamily: 'var(--font-mono), monospace',
@@ -237,56 +237,60 @@ export function DetailCard() {
                       day: 'numeric',
                     })}
                   </span>
-                  <span
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {/* Trash/hide button */}
+                  <motion.button
+                    onClick={() => actions.hideBookmark(selectedBookmark.id)}
+                    aria-label="この星を非表示"
+                    whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 100, 100, 0.12)' }}
+                    whileTap={{ scale: 0.9 }}
                     style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: '3px',
-                      background: selectedBookmark.is_read
-                        ? 'rgba(100, 200, 255, 0.1)'
-                        : 'rgba(255, 170, 100, 0.1)',
-                      borderRadius: '6px',
-                      padding: '2px 8px',
-                      color: selectedBookmark.is_read
-                        ? 'rgba(100, 200, 255, 0.7)'
-                        : 'rgba(255, 170, 100, 0.7)',
-                      fontSize: '9px',
-                      fontWeight: '500',
-                      whiteSpace: 'nowrap',
+                      justifyContent: 'center',
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '10px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      cursor: 'pointer',
                     }}
                   >
-                    {selectedBookmark.is_read ? '✦ 既読' : '✧ 未読'}
-                  </span>
-                </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </motion.button>
 
-                {/* X link button — compact */}
-                <motion.a
-                  href={selectedBookmark.tweet_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileTap={{ scale: 0.95 }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '7px 14px',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    color: 'rgba(255, 255, 255, 0.75)',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    fontFamily: 'var(--font-space), var(--font-inter), sans-serif',
-                  }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                  Xで見る
-                </motion.a>
+                  {/* X link button — icon only */}
+                  <motion.a
+                    href={selectedBookmark.tweet_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Xで見る"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '10px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.75)',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </motion.a>
+                </div>
               </div>
             </div>
           </div>

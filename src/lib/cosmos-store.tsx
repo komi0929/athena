@@ -12,6 +12,7 @@ interface CosmosActions {
   selectBookmark: (bookmark: Bookmark | null) => void;
   hoverBookmark: (bookmark: Bookmark | null) => void;
   markAsRead: (id: string) => void;
+  hideBookmark: (id: string) => Promise<void>;
   setZoomLevel: (level: number) => void;
   toggleAudio: () => void;
   addMeteor: (from: [number, number, number], to: [number, number, number]) => void;
@@ -273,10 +274,11 @@ async function fetchBookmarksFromSupabase(): Promise<Bookmark[] | null> {
     if (!session) return null;
 
     // RLS policy already filters by user_id = auth.uid()
-    // No need to explicitly filter by user_id
+    // Filter out hidden bookmarks
     const { data, error, count } = await supabase
       .from('bookmarks')
       .select('*', { count: 'exact' })
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .order('bookmarked_at', { ascending: false });
 
     console.log('[Cosmos] Supabase query result:', { count, error, rowCount: data?.length });
@@ -403,6 +405,31 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
         ),
       }));
     },
+    hideBookmark: async (id) => {
+      // Remove from local state immediately
+      setState(prev => {
+        const newBookmarks = prev.bookmarks.filter(b => b.id !== id);
+        // Also remove from cluster bookmark_ids
+        const newClusters = prev.clusters.map(c => ({
+          ...c,
+          bookmark_ids: c.bookmark_ids.filter(bid => bid !== id),
+        })).filter(c => c.bookmark_ids.length > 0);
+        return {
+          ...prev,
+          bookmarks: newBookmarks,
+          clusters: newClusters,
+          selectedBookmark: prev.selectedBookmark?.id === id ? null : prev.selectedBookmark,
+        };
+      });
+      // Persist to Supabase (soft delete via is_hidden column)
+      try {
+        const { createClient } = await import('./supabase');
+        const supabase = createClient();
+        await supabase.from('bookmarks').update({ is_hidden: true }).eq('id', id);
+      } catch (e) {
+        console.error('[Cosmos] Failed to hide bookmark in DB:', e);
+      }
+    },
     setZoomLevel: (level) => {
       setState(prev => ({ ...prev, zoomLevel: level }));
     },
@@ -439,9 +466,15 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
         const { getStoredProviderToken } = await import('./auth-provider');
         const supabase = createClient();
         
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) {
-          throw new Error('未ログインです。再ログインしてください。');
+        // Force token refresh to avoid Invalid JWT errors
+        let session = (await supabase.auth.refreshSession()).data?.session;
+        if (!session) {
+          // Fallback to getSession
+          const fallback = await supabase.auth.getSession();
+          session = fallback.data?.session ?? null;
+        }
+        if (!session) {
+          throw new Error('セッションが切れました。ログアウトして再度ログインしてください。');
         }
 
         // provider_token: prefer session (only available right after login),

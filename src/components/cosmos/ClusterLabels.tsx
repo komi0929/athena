@@ -202,6 +202,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
         <Text
           ref={textRef}
+          font="/NotoSansJP-Regular.woff2"
           fontSize={2.8}
           color={glowColor}
           anchorX="center"
