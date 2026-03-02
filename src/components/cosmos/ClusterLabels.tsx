@@ -75,7 +75,7 @@ const nebulaFragmentShader = `
     // Add subtle color variation
     color += uColor * 0.3 * fbm(p * 2.0 + 10.0) * edge;
     
-    gl_FragColor = vec4(color, intensity * 0.6);
+    gl_FragColor = vec4(color, intensity * 1.2);
   }
 `;
 
@@ -117,7 +117,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
     uColor: { value: new THREE.Color(
       ['#3344aa', '#5522aa', '#aa3366', '#22aa66', '#aa6622'][clusterIdx % 5]
     )},
-    uOpacity: { value: 0.04 },
+    uOpacity: { value: 0.15 },
   }), [clusterIdx]);
 
   const outerUniforms = useMemo(() => ({
@@ -125,7 +125,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
     uColor: { value: new THREE.Color(
       ['#4466cc', '#7744cc', '#cc4488', '#44cc88', '#cc8844'][clusterIdx % 5]
     )},
-    uOpacity: { value: 0.015 },
+    uOpacity: { value: 0.06 },
   }), [clusterIdx]);
 
   useFrame((state) => {
@@ -136,11 +136,14 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
     uniforms.uTime.value = t;
     outerUniforms.uTime.value = t;
 
-    // Label visibility based on distance
-    const labelOpacity = THREE.MathUtils.smoothstep(camDist, 50, 100);
+    // Label visibility — always show but brighter when far
+    const labelOpacity = THREE.MathUtils.clamp(
+      THREE.MathUtils.smoothstep(camDist, 30, 80),
+      0.4, 1.0
+    );
     if (textRef.current?.material) {
-      textRef.current.material.opacity = labelOpacity * 0.8;
-      textRef.current.visible = labelOpacity > 0.01;
+      textRef.current.material.opacity = labelOpacity;
+      textRef.current.visible = true;
     }
 
     // Nebula slow rotation
