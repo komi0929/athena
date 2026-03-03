@@ -127,6 +127,9 @@ export default function AthenaApp() {
         {/* Warp-in Entry Effect */}
         <WarpEntry />
 
+        {/* Supernova exit overlay */}
+        <SupernovaExit />
+
         {/* Info hint — typewriter style */}
         <HintOverlay />
       </div>
@@ -163,8 +166,8 @@ function UserBadge() {
         localStorage.removeItem('athena_user_categories');
         localStorage.removeItem('athena_onboarding_seen');
       } catch { /* ignore */ }
-      // Sign out
-      await signOut();
+      // Trigger supernova then sign out
+      triggerSupernova(() => signOut());
     } catch {
       alert('アカウント削除中にエラーが発生しました');
       setIsDeleting(false);
@@ -243,9 +246,9 @@ function UserBadge() {
 
             {/* Logout button */}
             <button
-              onClick={async () => {
+              onClick={() => {
                 setMenuOpen(false);
-                await signOut();
+                triggerSupernova(() => signOut());
               }}
               style={{
                 display: 'flex',
@@ -367,6 +370,43 @@ function UserBadge() {
       </AnimatePresence>
     </div>
   );
+}
+
+// ═══ Supernova Exit Effect ═══
+// Triggers a brilliant star-flash → blackout before signOut/delete actions
+
+let _supernovaResolve: (() => void) | null = null;
+
+function triggerSupernova(onComplete: () => void) {
+  window.dispatchEvent(new CustomEvent('athena-supernova-exit'));
+  // Wait for animation (2s) then execute callback
+  _supernovaResolve = onComplete;
+}
+
+function SupernovaExit() {
+  const [active, setActive] = React.useState(false);
+
+  React.useEffect(() => {
+    const handler = () => setActive(true);
+    window.addEventListener('athena-supernova-exit', handler);
+    return () => window.removeEventListener('athena-supernova-exit', handler);
+  }, []);
+
+  React.useEffect(() => {
+    if (!active) return;
+    // After 2s animation, fire callback
+    const timer = setTimeout(() => {
+      if (_supernovaResolve) {
+        _supernovaResolve();
+        _supernovaResolve = null;
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [active]);
+
+  if (!active) return null;
+
+  return <div className="supernova-exit" />;
 }
 
 // ═══ Warp Entry ═══

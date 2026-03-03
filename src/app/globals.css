@@ -307,3 +307,69 @@ input[type="range"] {
   );
   animation: starStreaks 1.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
+
+/* ═══ Supernova Exit Effect ═══ */
+/* Phase 1: Stars flash supernova-bright (0→35%) */
+/* Phase 2: Everything collapses to void (35→100%) */
+
+.supernova-exit {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  pointer-events: all;
+  animation: supernovaFlash 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes supernovaFlash {
+  0% {
+    background: transparent;
+    backdrop-filter: brightness(1) blur(0px);
+    -webkit-backdrop-filter: brightness(1) blur(0px);
+    opacity: 1;
+  }
+  /* Stars ignite — white-hot bloom */
+  15% {
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      rgba(200, 220, 255, 0.95) 0%,
+      rgba(100, 160, 255, 0.7) 25%,
+      rgba(60, 80, 180, 0.4) 50%,
+      transparent 80%
+    );
+    backdrop-filter: brightness(8) blur(3px) saturate(0.3);
+    -webkit-backdrop-filter: brightness(8) blur(3px) saturate(0.3);
+    opacity: 1;
+  }
+  /* Peak flash */
+  25% {
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(180, 200, 255, 0.9) 20%,
+      rgba(80, 120, 200, 0.5) 50%,
+      rgba(20, 20, 60, 0.3) 80%
+    );
+    backdrop-filter: brightness(12) blur(6px) saturate(0);
+    -webkit-backdrop-filter: brightness(12) blur(6px) saturate(0);
+    opacity: 1;
+  }
+  /* Collapse inward */
+  50% {
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      rgba(80, 100, 200, 0.3) 0%,
+      rgba(10, 10, 30, 0.95) 40%,
+      rgba(0, 0, 5, 1) 70%
+    );
+    backdrop-filter: brightness(0.3) blur(10px);
+    -webkit-backdrop-filter: brightness(0.3) blur(10px);
+    opacity: 1;
+  }
+  /* Total darkness */
+  100% {
+    background: #000005;
+    backdrop-filter: brightness(0) blur(20px);
+    -webkit-backdrop-filter: brightness(0) blur(20px);
+    opacity: 1;
+  }
+}
