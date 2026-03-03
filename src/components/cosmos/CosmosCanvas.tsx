@@ -139,11 +139,13 @@ export function CosmosCanvas() {
           ref={controlsRef}
           enableDamping
           dampingFactor={0.06}
-          rotateSpeed={0.35}
+          rotateSpeed={0.5}
           zoomSpeed={0.7}
+          panSpeed={0.5}
           minDistance={5}
           maxDistance={250}
-          enablePan={false}
+          enablePan={true}
+          screenSpacePanning={true}
         />
       </Canvas>
     </div>

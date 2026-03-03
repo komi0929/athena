@@ -85,20 +85,21 @@ const NEBULA_COLORS_INNER = ['#3344aa', '#5522aa', '#aa3366', '#22aa66', '#aa662
 const NEBULA_COLORS_OUTER = ['#4466cc', '#7744cc', '#cc4488', '#44cc88', '#cc8844'];
 
 export function ClusterLabels() {
-  const { clusters } = useCosmosStore();
+  const { clusters, selectedBookmark } = useCosmosStore();
+  const hasSelection = !!selectedBookmark;
 
   if (clusters.length === 0) return null;
 
   return (
     <group>
       {clusters.map((cluster) => (
-        <ClusterLabel key={cluster.id} cluster={cluster} />
+        <ClusterLabel key={cluster.id} cluster={cluster} hasSelection={hasSelection} />
       ))}
     </group>
   );
 }
 
-function ClusterLabel({ cluster }: { cluster: { id: string; label: string; center_x: number; center_y: number; center_z: number; radius: number; bookmark_ids: string[] } }) {
+function ClusterLabel({ cluster, hasSelection }: { cluster: { id: string; label: string; center_x: number; center_y: number; center_z: number; radius: number; bookmark_ids: string[] }; hasSelection: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   const nebulaRef = useRef<THREE.Mesh>(null);
   const nebulaOuterRef = useRef<THREE.Mesh>(null);
@@ -206,10 +207,13 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
       <Html
         center
         distanceFactor={50}
+        zIndexRange={[1, 0]}
         style={{
           pointerEvents: 'none',
           userSelect: 'none',
           whiteSpace: 'nowrap',
+          opacity: hasSelection ? 0 : 1,
+          transition: 'opacity 0.3s ease',
         }}
         // Place label above cluster center
         position={[0, cluster.radius * 0.6 + 3, 0]}

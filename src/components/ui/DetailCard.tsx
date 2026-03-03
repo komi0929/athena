@@ -220,19 +220,27 @@ export function DetailCard() {
                     </p>
                   );
                 } else {
-                  // URL-only text: show OGP title or tweet URL as fallback
+                  // URL-only text: show OGP title prominently or fallback
                   return (
                     <p
                       style={{
                         fontSize: '13px',
                         lineHeight: '1.75',
-                        color: 'rgba(255, 255, 255, 0.5)',
+                        color: selectedBookmark.ogp_title
+                          ? 'rgba(255, 255, 255, 0.88)'
+                          : 'rgba(255, 255, 255, 0.5)',
                         margin: '0 0 12px 0',
-                        fontStyle: 'italic',
+                        fontStyle: selectedBookmark.ogp_title ? 'normal' : 'italic',
                         wordBreak: 'break-word',
                       }}
                     >
-                      {selectedBookmark.ogp_title || '📎 Xで全文を見る'}
+                      {selectedBookmark.ogp_title ? (
+                        <span style={{ fontWeight: 600 }}>
+                          🔗 {selectedBookmark.ogp_title}
+                        </span>
+                      ) : (
+                        <span>📎 Xで全文を見る</span>
+                      )}
                     </p>
                   );
                 }
