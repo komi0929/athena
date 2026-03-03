@@ -138,11 +138,38 @@ export default function AthenaApp() {
 function UserBadge() {
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   if (!user) return null;
 
   const avatarUrl = user.user_metadata?.avatar_url;
   const userName = user.user_metadata?.full_name || user.user_metadata?.user_name || 'User';
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch('/api/account/delete', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'アカウント削除に失敗しました');
+        setIsDeleting(false);
+        return;
+      }
+      // Clear local storage
+      try {
+        localStorage.removeItem('athena_x_provider_token');
+        localStorage.removeItem('athena_last_sync');
+        localStorage.removeItem('athena_user_categories');
+        localStorage.removeItem('athena_onboarding_seen');
+      } catch { /* ignore */ }
+      // Sign out
+      await signOut();
+    } catch {
+      alert('アカウント削除中にエラーが発生しました');
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div
@@ -157,7 +184,7 @@ function UserBadge() {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 1, duration: 0.5 }}
-        onClick={() => setMenuOpen(!menuOpen)}
+        onClick={() => { setMenuOpen(!menuOpen); setShowDeleteConfirm(false); }}
         aria-label="ユーザーメニュー"
         style={{
           width: '40px',
@@ -200,7 +227,7 @@ function UserBadge() {
               border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: '14px',
               padding: '12px 16px',
-              minWidth: '160px',
+              minWidth: '180px',
               boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
             }}
           >
@@ -213,6 +240,8 @@ function UserBadge() {
             }}>
               {userName}
             </p>
+
+            {/* Logout button */}
             <button
               onClick={async () => {
                 setMenuOpen(false);
@@ -227,17 +256,112 @@ function UserBadge() {
                 borderRadius: '8px',
                 background: 'transparent',
                 border: 'none',
-                color: 'rgba(255, 100, 120, 0.7)',
+                color: 'rgba(255, 255, 255, 0.6)',
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontFamily: "var(--font-space), sans-serif",
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 100, 120, 0.06)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
               ログアウト
             </button>
+
+            {/* Divider */}
+            <div style={{
+              height: '1px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              margin: '6px 0',
+            }} />
+
+            {/* Delete account button */}
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(255, 80, 80, 0.6)',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontFamily: "var(--font-space), sans-serif",
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 80, 80, 0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                アカウント削除
+              </button>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                style={{ overflow: 'hidden' }}
+              >
+                <p style={{
+                  fontSize: '11px',
+                  color: 'rgba(255, 100, 100, 0.8)',
+                  margin: '4px 0 8px 0',
+                  lineHeight: '1.5',
+                }}>
+                  ⚠️ すべてのブックマークとデータが完全に削除されます。この操作は取り消せません。
+                </p>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: 'rgba(255, 255, 255, 0.6)',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      fontFamily: "var(--font-space), sans-serif",
+                    }}
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                    style={{
+                      flex: 1,
+                      padding: '7px 0',
+                      borderRadius: '8px',
+                      background: isDeleting ? 'rgba(255, 80, 80, 0.1)' : 'rgba(255, 80, 80, 0.15)',
+                      border: '1px solid rgba(255, 80, 80, 0.3)',
+                      color: isDeleting ? 'rgba(255, 80, 80, 0.4)' : 'rgba(255, 80, 80, 0.9)',
+                      cursor: isDeleting ? 'wait' : 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      fontFamily: "var(--font-space), sans-serif",
+                    }}
+                  >
+                    {isDeleting ? '削除中...' : '削除する'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
