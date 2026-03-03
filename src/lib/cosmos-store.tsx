@@ -377,6 +377,35 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
     loadRealBookmarks();
   }, [loadRealBookmarks]);
 
+  // ═══ Auto-sync on first login ═══
+  // When user signs in with X and has no bookmarks yet, auto-trigger sync
+  const autoSyncTriggered = useRef(false);
+  useEffect(() => {
+    const onSignedIn = () => {
+      if (autoSyncTriggered.current) return;
+      autoSyncTriggered.current = true;
+      console.log('[Cosmos] User signed in — triggering auto-sync');
+      // Small delay to ensure session/cookies are stable
+      setTimeout(() => {
+        // Access latest state via setState callback pattern
+        setState(prev => {
+          // Only auto-sync if no real bookmarks loaded yet
+          if (prev.bookmarks.length === 0 || prev.isLoading) {
+            // Trigger sync asynchronously — actionsRef ensures latest reference
+            actionsRef.current?.syncBookmarks();
+          }
+          return prev; // No state change
+        });
+      }, 500);
+    };
+
+    window.addEventListener('athena-user-signed-in', onSignedIn);
+    return () => window.removeEventListener('athena-user-signed-in', onSignedIn);
+  }, []);
+
+  // Keep a ref to actions for auto-sync (avoids stale closure)
+  const actionsRef = useRef<CosmosActions | null>(null);
+
   // Persist sync state changes
   useEffect(() => {
     saveSyncState(state.sync);
@@ -574,6 +603,9 @@ export function CosmosProvider({ children }: { children: React.ReactNode }) {
 
     getSyncState: () => state.sync,
   }), [state.bookmarks, state.sync, loadRealBookmarks]);
+
+  // Keep actionsRef in sync for auto-sync closure
+  actionsRef.current = actions;
 
   // Remove expired meteors
   useEffect(() => {

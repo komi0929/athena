@@ -72,6 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.provider_token) {
           console.log('[Auth] Captured provider_token from', event);
           storeProviderToken(session.provider_token);
+
+          // Notify CosmosProvider to auto-sync on first login
+          if (event === 'SIGNED_IN') {
+            window.dispatchEvent(new CustomEvent('athena-user-signed-in'));
+          }
         }
 
         if (event === 'SIGNED_OUT') {
