@@ -214,7 +214,10 @@ Deno.serve(async (req: Request) => {
         const author = userMap.get(tweet.author_id);
         // Prefer note_tweet entities (long-form tweets) over base entities
         const entities = tweet.note_tweet?.entities || tweet.entities;
-        const ogpUrl = entities?.urls?.[0];
+        // Find the best URL with a title — X Articles and link shares may have
+        // title info on any URL in the array, not just the first one
+        const allUrls = entities?.urls || [];
+        const ogpUrl = allUrls.find((u: { title?: string }) => u.title) || allUrls[0];
         const seed = parseInt(tweet.id.slice(-6), 10) || i;
 
         // Use note_tweet.text for full content of long-form tweets

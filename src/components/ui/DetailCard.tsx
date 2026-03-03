@@ -219,31 +219,61 @@ export function DetailCard() {
                       {renderTextWithLinks(cleaned)}
                     </p>
                   );
-                } else {
-                  // URL-only text: show OGP title prominently or fallback
+                }
+
+                // ═══ Fallback for URL-only tweets (X Articles, link shares, etc.) ═══
+                // Priority: ogp_title > ogp_description > author context
+                if (selectedBookmark.ogp_title) {
                   return (
-                    <p
-                      style={{
-                        fontSize: '13px',
-                        lineHeight: '1.75',
-                        color: selectedBookmark.ogp_title
-                          ? 'rgba(255, 255, 255, 0.88)'
-                          : 'rgba(255, 255, 255, 0.5)',
-                        margin: '0 0 12px 0',
-                        fontStyle: selectedBookmark.ogp_title ? 'normal' : 'italic',
-                        wordBreak: 'break-word',
-                      }}
-                    >
-                      {selectedBookmark.ogp_title ? (
-                        <span style={{ fontWeight: 600 }}>
-                          🔗 {selectedBookmark.ogp_title}
-                        </span>
-                      ) : (
-                        <span>📎 Xで全文を見る</span>
+                    <div style={{ margin: '0 0 12px 0' }}>
+                      <p
+                        style={{
+                          fontSize: '14px',
+                          lineHeight: '1.6',
+                          color: 'rgba(255, 255, 255, 0.92)',
+                          margin: '0 0 6px 0',
+                          fontWeight: 600,
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        📝 {selectedBookmark.ogp_title}
+                      </p>
+                      {selectedBookmark.ogp_description && (
+                        <p
+                          style={{
+                            fontSize: '12px',
+                            lineHeight: '1.6',
+                            color: 'rgba(255, 255, 255, 0.55)',
+                            margin: 0,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {selectedBookmark.ogp_description}
+                        </p>
                       )}
-                    </p>
+                    </div>
                   );
                 }
+
+                // No OGP title — show minimal context with X link
+                return (
+                  <p
+                    style={{
+                      fontSize: '13px',
+                      lineHeight: '1.75',
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      margin: '0 0 12px 0',
+                      fontStyle: 'italic',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {selectedBookmark.author_name}さんの投稿
+                  </p>
+                );
               })()}
 
               {/* OGP card */}
