@@ -163,14 +163,19 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
 
   return (
     <group ref={groupRef} position={[cluster.center_x, cluster.center_y, cluster.center_z]}>
-      {/* Invisible click zone — easy to click */}
-      <mesh onClick={handleClick} onPointerOver={() => { document.body.style.cursor = 'pointer'; }} onPointerOut={() => { document.body.style.cursor = 'default'; }}>
+      {/* Invisible click zone — does NOT block raycast to inner stars */}
+      <mesh
+        onClick={handleClick}
+        onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { document.body.style.cursor = 'default'; }}
+        raycast={() => { /* no-op: let clicks pass through to stars */ }}
+      >
         <sphereGeometry args={[cluster.radius * 0.8, 16, 16]} />
         <meshBasicMaterial visible={false} />
       </mesh>
 
       {/* FBM-driven inner nebula cloud */}
-      <mesh ref={nebulaRef}>
+      <mesh ref={nebulaRef} raycast={() => {}}>
         <icosahedronGeometry args={[cluster.radius * 0.7, 4]} />
         <shaderMaterial
           vertexShader={nebulaVertexShader}
@@ -184,7 +189,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
       </mesh>
 
       {/* Outer haze — larger, more diffuse */}
-      <mesh ref={nebulaOuterRef}>
+      <mesh ref={nebulaOuterRef} raycast={() => {}}>
         <icosahedronGeometry args={[cluster.radius * 1.3, 3]} />
         <shaderMaterial
           vertexShader={nebulaVertexShader}
@@ -200,7 +205,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
       {/* ═══ Label — HTML overlay for guaranteed Japanese text rendering ═══ */}
       <Html
         center
-        distanceFactor={25}
+        distanceFactor={50}
         style={{
           pointerEvents: 'none',
           userSelect: 'none',
@@ -215,7 +220,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
           style={{
             pointerEvents: 'auto',
             cursor: 'pointer',
-            fontSize: '16px',
+            fontSize: '64px',
             fontWeight: 600,
             fontFamily: "'Noto Sans JP', 'Inter', 'Hiragino Kaku Gothic ProN', sans-serif",
             color: glowColor,
@@ -229,7 +234,7 @@ function ClusterLabel({ cluster }: { cluster: { id: string; label: string; cente
           {cluster.label}
           {/* Star count badge */}
           <div style={{
-            fontSize: '9px',
+            fontSize: '24px',
             fontWeight: 400,
             color: `${glowColor}99`,
             marginTop: '2px',

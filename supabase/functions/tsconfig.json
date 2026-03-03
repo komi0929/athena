@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["esnext", "webworker"],
+    "noEmit": true,
+    "strict": true,
+    "allowImportingTsExtensions": true
+  }
+}
