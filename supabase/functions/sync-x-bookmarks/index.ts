@@ -11,6 +11,17 @@ interface XBookmark {
   text: string;
   created_at: string;
   author_id: string;
+  note_tweet?: {
+    text: string;
+    entities?: {
+      urls?: Array<{
+        expanded_url: string;
+        title?: string;
+        description?: string;
+        images?: Array<{ url: string }>;
+      }>;
+    };
+  };
   entities?: {
     urls?: Array<{
       expanded_url: string;
@@ -147,7 +158,7 @@ Deno.serve(async (req: Request) => {
 
     const xApiUrl = new URL(`https://api.twitter.com/2/users/${xUserId}/bookmarks`);
     xApiUrl.searchParams.set('max_results', '30'); // 【絶対制約】固定30件
-    xApiUrl.searchParams.set('tweet.fields', 'created_at,text,author_id,entities');
+    xApiUrl.searchParams.set('tweet.fields', 'created_at,text,author_id,entities,note_tweet');
     xApiUrl.searchParams.set('expansions', 'author_id');
     xApiUrl.searchParams.set('user.fields', 'name,username');
 
@@ -201,8 +212,14 @@ Deno.serve(async (req: Request) => {
       // Simple seeded position placement for now
       const newBookmarks = newTweets.map((tweet: XBookmark, i: number) => {
         const author = userMap.get(tweet.author_id);
-        const ogpUrl = tweet.entities?.urls?.[0];
+        // Prefer note_tweet entities (long-form tweets) over base entities
+        const entities = tweet.note_tweet?.entities || tweet.entities;
+        const ogpUrl = entities?.urls?.[0];
         const seed = parseInt(tweet.id.slice(-6), 10) || i;
+
+        // Use note_tweet.text for full content of long-form tweets
+        // The base text field is truncated to ~280 chars + t.co URL
+        const fullText = tweet.note_tweet?.text || tweet.text;
 
         // Distribute in a sphere
         const theta = ((seed * 0.618) % 1) * Math.PI * 2;
@@ -213,7 +230,7 @@ Deno.serve(async (req: Request) => {
           user_id: user.id,
           tweet_id: tweet.id,
           tweet_url: `https://x.com/${author?.username || 'i'}/status/${tweet.id}`,
-          text: tweet.text,
+          text: fullText,
           author_name: author?.name || 'Unknown',
           author_handle: `@${author?.username || 'unknown'}`,
           ogp_title: ogpUrl?.title || null,

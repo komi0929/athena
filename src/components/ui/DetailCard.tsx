@@ -4,6 +4,56 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCosmosStore } from '@/lib/cosmos-store';
 
+/**
+ * Clean up tweet text for display:
+ * 1. Remove trailing t.co URLs (API truncation artifacts)
+ * 2. If text is URL-only, return null to trigger fallback
+ */
+function cleanTweetText(text: string): string | null {
+  // Remove trailing t.co URLs (truncation artifacts from X API)
+  const cleaned = text.replace(/\s*https:\/\/t\.co\/\w+\s*$/g, '').trim();
+  
+  // If the entire text is just t.co URLs, return null
+  if (!cleaned || /^(https?:\/\/t\.co\/\w+\s*)+$/i.test(text.trim())) {
+    return null;
+  }
+  
+  return cleaned;
+}
+
+/**
+ * Render text with clickable URLs
+ */
+function renderTextWithLinks(text: string): React.ReactNode[] {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      // Reset regex lastIndex
+      urlRegex.lastIndex = 0;
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: 'rgba(100, 170, 255, 0.9)',
+            textDecoration: 'underline',
+            textDecorationColor: 'rgba(100, 170, 255, 0.3)',
+            wordBreak: 'break-all',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part.length > 40 ? part.slice(0, 40) + '…' : part}
+        </a>
+      );
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
+
 export function DetailCard() {
   const { selectedBookmark, actions } = useCosmosStore();
 
@@ -151,19 +201,42 @@ export function DetailCard() {
               </div>
 
               {/* Tweet text */}
-              <p
-                style={{
-                  fontSize: '13px',
-                  lineHeight: '1.75',
-                  color: 'rgba(255, 255, 255, 0.88)',
-                  margin: '0 0 12px 0',
-                  letterSpacing: '0.02em',
-                  wordBreak: 'break-word',
-                  overflowWrap: 'break-word',
-                }}
-              >
-                {selectedBookmark.text}
-              </p>
+              {(() => {
+                const cleaned = cleanTweetText(selectedBookmark.text);
+                if (cleaned) {
+                  return (
+                    <p
+                      style={{
+                        fontSize: '13px',
+                        lineHeight: '1.75',
+                        color: 'rgba(255, 255, 255, 0.88)',
+                        margin: '0 0 12px 0',
+                        letterSpacing: '0.02em',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word',
+                      }}
+                    >
+                      {renderTextWithLinks(cleaned)}
+                    </p>
+                  );
+                } else {
+                  // URL-only text: show OGP title or tweet URL as fallback
+                  return (
+                    <p
+                      style={{
+                        fontSize: '13px',
+                        lineHeight: '1.75',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        margin: '0 0 12px 0',
+                        fontStyle: 'italic',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {selectedBookmark.ogp_title || '📎 Xで全文を見る'}
+                    </p>
+                  );
+                }
+              })()}
 
               {/* OGP card */}
               {selectedBookmark.ogp_title && (
